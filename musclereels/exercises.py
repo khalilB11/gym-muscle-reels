@@ -61,3 +61,28 @@ class ExerciseDB:
 
     def all(self) -> list[Exercise]:
         return list(self._items.values())
+
+    def aliases_of(self, key: str) -> list[str]:
+        return [a for a, k in self._aliases.items() if k == key]
+
+    def search(self, query: str, limit: int = 50) -> list[Exercise]:
+        """Exercises matching a name, key or alias; prefix matches first, then substrings,
+        then close (misspelt) matches."""
+        q = normalize(query)
+        if not q:
+            return sorted(self.all(), key=lambda e: e.name)[:limit]
+        prefix, contains = [], []
+        for ex in self.all():
+            names = [ex.key, normalize(ex.name), *self.aliases_of(ex.key)]
+            if any(n.startswith(q) for n in names):
+                prefix.append(ex)
+            elif any(q in n for n in names):
+                contains.append(ex)
+        found = sorted(prefix, key=lambda e: e.name) + sorted(contains, key=lambda e: e.name)
+        if not found:
+            options = list(self._items) + list(self._aliases)
+            for k in difflib.get_close_matches(q, options, n=5, cutoff=0.6):
+                ex = self._items.get(k) or self._items[self._aliases[k]]
+                if ex not in found:
+                    found.append(ex)
+        return found[:limit]

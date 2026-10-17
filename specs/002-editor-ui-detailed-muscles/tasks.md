@@ -71,21 +71,21 @@ description: "Task list for feature 002: Reel Editor App with Detailed Muscle Ma
 
 ### Tests (write first, must fail)
 
-- [ ] T021 [P] [US1] Write `tests/test_parity.py`: for a project with 2 segments, `frame_for_time(project, t, scale=1.0)` equals the frame decoded from `render()` output at t ∈ {0.4, 1.0, 2.5} within the H.264 tolerance used by `tools/compare_videos.py` (max abs diff ≤ 6 after encode)
-- [ ] T022 [P] [US1] Write `tests/app/test_open_export.py` (pytest-qt): launch `MainWindow`, open `demo_clip`, select "rdl" in the exercise panel → segment created covering the clip with "Romanian Deadlift"; play for 0.5 s without errors; export to tmp via the export dialog; output is 1080×1920 h264 with audio; Save then reopen → identical `Project`
-- [ ] T023 [P] [US1] Write `tests/app/test_errors.py`: opening a text file renamed `.mp4` shows an error dialog and the window remains usable; `musclereels app` without PySide6 importable exits 2 with the `pip install "musclereels[app]"` message
+- [X] T021 [P] [US1] Write `tests/test_parity.py`: for a project with 2 segments, `frame_for_time(project, t, scale=1.0)` matches the frame decoded from `render()` output at t ∈ {0.4, 1.0, 2.5}: luma PSNR ≥ 40 dB and clearly better than the neighbouring frames (H.264 4:2:0 chroma alone costs ~31 dB on the test pattern, so a per-pixel bound isn't meaningful)
+- [X] T022 [P] [US1] Write `tests/app/test_open_export.py` (pytest-qt): launch `MainWindow`, open `demo_clip`, select "rdl" in the exercise panel → segment created covering the clip with "Romanian Deadlift"; play for 0.5 s without errors; export to tmp via the export dialog; output is 1080×1920 h264 with audio; Save then reopen → identical `Project`
+- [X] T023 [P] [US1] Write `tests/app/test_errors.py`: opening a text file renamed `.mp4` shows an error dialog and the window remains usable; `musclereels app` without PySide6 importable exits 2 with the `pip install "musclereels[app]"` message
 
 ### Implementation
 
-- [ ] T024 [US1] Implement `musclereels/app/__init__.py` `launch(path=None)` creating `QApplication` + `MainWindow`; import guard for PySide6 → friendly message; add `musclereels app [project.yaml|clip.mp4]` subcommand in `musclereels/cli.py`
-- [ ] T025 [P] [US1] Implement `musclereels/app/player.py`: `Player(QObject)` on a worker `QThread` using `VideoSource.frame_at`/`iter_frames`, LRU cache (≤ ~300 MB, ≈ 150 frames at 540×960), signals `frameReady(t, QImage)`, `positionChanged(t)`; play/pause/seek/step(±1 frame)/jump(±1 s); compositing via `frame_for_time(project, t, scale=0.5)`
-- [ ] T026 [P] [US1] Implement `musclereels/app/canvas.py`: `QGraphicsView` with fixed 1080×1920 scene scaled to fit; background `QGraphicsPixmapItem` for video frames; overlay sprites as pixmap items positioned from `effective_layout` (read-only in this story); shaded Instagram reserved areas toggle
-- [ ] T027 [P] [US1] Implement `musclereels/app/exercise_panel.py`: search field filtering `ExerciseDB` by name/alias with `difflib` close matches; click applies to the selected segment or creates one covering the whole clip if none exist; "Custom…" creates a segment with title + empty muscles
-- [ ] T028 [P] [US1] Implement `musclereels/app/inspector.py` (segment section): title and subtitle fields updating the project and redrawing immediately (FR-004)
-- [ ] T029 [P] [US1] Implement `musclereels/app/export_dialog.py`: runs `render()` in a `QThread`, progress bar from `progress_cb`, Cancel sets the event, success shows "Show in folder"; failures display the error text
-- [ ] T030 [US1] Implement `musclereels/app/main_window.py`: toolbar (Open, Save, Save As, Export), drag-and-drop of video/project files, panel layout per contracts/ui.md, keyboard shortcuts (Space, ←/→, Shift+←/→), state machine Empty → Editing(clean/dirty) → Exporting, unsaved-changes prompt on close, window title with `*` when dirty; while a clip loads that `needs_proxy`, show a progress dialog for `VideoSource.prepare`
-- [ ] T031 [US1] Wire save/open to `save_project`/`load_project`; opening a v1 script works; validation errors from `ProjectError` shown with file:line
-- [ ] T032 [US1] Run T021–T023 green; manually run quickstart §4 steps 1, 2, 8
+- [X] T024 [US1] Implement `musclereels/app/__init__.py` `launch(path=None)` creating `QApplication` + `MainWindow`; import guard for PySide6 → friendly message; add `musclereels app [project.yaml|clip.mp4]` subcommand in `musclereels/cli.py`
+- [X] T025 [P] [US1] Implement `musclereels/app/player.py`: `Player(QObject)` on a worker `QThread` using `VideoSource.frame_at`/`iter_frames`, LRU cache (≤ ~300 MB, ≈ 150 frames at 540×960), signals `frameReady(t, QImage)`, `positionChanged(t)`; play/pause/seek/step(±1 frame)/jump(±1 s); compositing via `frame_for_time(project, t, scale=0.5)`
+- [X] T026 [P] [US1] Implement `musclereels/app/canvas.py`: `QGraphicsView` with fixed 1080×1920 scene scaled to fit; background `QGraphicsPixmapItem` showing frames composited by `frame_for_time` (overlay included, so preview == export; draggable element items arrive in US2 T037/T038); shaded Instagram reserved areas toggle
+- [X] T027 [P] [US1] Implement `musclereels/app/exercise_panel.py`: search field filtering `ExerciseDB` by name/alias with `difflib` close matches; click applies to the selected segment or creates one covering the whole clip if none exist; "Custom…" creates a segment with title + empty muscles
+- [X] T028 [P] [US1] Implement `musclereels/app/inspector.py` (segment section): title and subtitle fields updating the project and redrawing immediately (FR-004)
+- [X] T029 [P] [US1] Implement `musclereels/app/export_dialog.py`: runs `render()` in a `QThread`, progress bar from `progress_cb`, Cancel sets the event, success shows "Show in folder"; failures display the error text
+- [X] T030 [US1] Implement `musclereels/app/main_window.py`: toolbar (Open, Save, Save As, Export), drag-and-drop of video/project files, panel layout per contracts/ui.md, keyboard shortcuts (Space, ←/→, Shift+←/→), state machine Empty → Editing(clean/dirty) → Exporting, unsaved-changes prompt on close, window title with `*` when dirty; while a clip loads that `needs_proxy`, show a progress dialog for `VideoSource.prepare`
+- [X] T031 [US1] Wire save/open to `save_project`/`load_project`; opening a v1 script works; validation errors from `ProjectError` shown with file:line
+- [X] T032 [US1] Run T021–T023 green; manually run quickstart §4 steps 1, 2, 8
 
 **Checkpoint**: MVP: a reel can be made end to end in the app (fixed `card-left` layout).
 

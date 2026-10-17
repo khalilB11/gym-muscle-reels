@@ -110,8 +110,10 @@ def make_segment(spec: dict, db: ExerciseDB) -> Segment:
     secondary = [m for m in secondary if m not in primary]
     title_set = spec.get("title")
     title = title_set if title_set else title
-    if not title or not primary:
-        raise ValueError(f"segment at {start}s needs an `exercise`, or a `title` and `primary` muscles")
+    if not title:
+        raise ValueError(f"segment at {start}s needs an `exercise` or a `title`")
+    if not primary and not title_set:
+        raise ValueError(f"segment at {start}s: exercise has no muscles")
     overrides = dict(spec.get("overrides") or {})
     for m, state in overrides.items():
         resolve_muscles([m])
