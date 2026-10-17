@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# media: keep your clips and renders out of git
+*.mp4
+*.mov
+*.m4v
+*.avi
+*.mkv
+*.png
+!docs/*.png
+demo/
+out/
+clips/
+.DS_Store

@@ -1,0 +1,15 @@
+# Your own exercises. Same keys override the built-in ones.
+# Muscles: chest, front_delts, side_delts, rear_delts, traps, rhomboids, lats,
+#   lower_back, biceps, triceps, forearms, abs, obliques, glutes, quads,
+#   hamstrings, adductors, calves   (run `musclereels list --muscles`)
+
+landmine_press:
+  name: Landmine Press
+  aliases: [landmine]
+  primary: [front_delts, chest]
+  secondary: [triceps, obliques]
+
+pendulum_squat:
+  name: Pendulum Squat
+  primary: [quads]
+  secondary: [glutes, adductors]

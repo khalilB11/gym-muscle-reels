@@ -1,0 +1,44 @@
+# Edit script: one clip, several exercises.
+# Render with:  musclereels render examples/session.yaml
+# Paths are relative to this file.
+
+input: ../clips/push_day.mp4
+output: ../out/push_day_reel.mp4
+
+position: left      # left | right | center  (where the body-map card sits)
+fit: auto           # auto | cover (crop to fill) | blur (letterbox on blurred bg)
+trim: false         # true = cut the video to the first..last segment
+card_scale: 1.0     # make the card smaller/bigger, e.g. 0.85
+pulse_hz: 1.2       # how fast the highlighted muscles pulse
+
+# Optional: your own exercises (see custom_exercises.yaml)
+exercises_file: custom_exercises.yaml
+
+segments:
+  - start: 0
+    end: 7.5
+    exercise: bench_press
+    subtitle: "4 x 8 @ 80kg"
+
+  - start: "0:08"
+    end: "0:15"
+    exercise: incline press        # aliases work
+    subtitle: "3 x 10"
+
+  - start: 15
+    end: 22
+    exercise: lateral_raise
+    title: "Cable Lateral Raise"   # override the on-screen title
+
+  - start: 22
+    end: end                        # until the end of the clip
+    title: "Sled Push"              # fully custom, no exercise entry needed
+    primary: [quads, glutes]
+    secondary: [calves, hamstrings]
+
+# Optional colors (hex)
+# theme:
+#   primary: "#FF3B30"
+#   secondary: "#FF9F0A"
+#   card: "#0C0E12C8"
+#   font: /path/to/YourBrandFont-Bold.ttf

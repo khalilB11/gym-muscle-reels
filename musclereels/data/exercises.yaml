@@ -1,0 +1,188 @@
+# Exercise -> muscles it works.
+#   primary:   main movers (shown in red)
+#   secondary: assisting / stabilising muscles (shown in orange)
+# Muscle ids: chest, front_delts, side_delts, rear_delts, traps, rhomboids, lats,
+#   lower_back, biceps, triceps, forearms, abs, obliques, glutes, quads,
+#   hamstrings, adductors, calves
+# Aliases also work: shoulders, delts, back, upper_back, core, pecs, hams ...
+
+# --- Chest ---
+bench_press:
+  name: Bench Press
+  aliases: [bench, flat bench, barbell bench press]
+  primary: [chest]
+  secondary: [front_delts, triceps]
+incline_bench_press:
+  name: Incline Bench Press
+  aliases: [incline bench, incline press]
+  primary: [chest, front_delts]
+  secondary: [triceps]
+dumbbell_fly:
+  name: Dumbbell Fly
+  aliases: [chest fly, fly, pec fly]
+  primary: [chest]
+  secondary: [front_delts]
+cable_crossover:
+  name: Cable Crossover
+  aliases: [cable fly]
+  primary: [chest]
+  secondary: [front_delts]
+push_up:
+  name: Push-Up
+  aliases: [pushup, push ups]
+  primary: [chest]
+  secondary: [front_delts, triceps, abs]
+dips:
+  name: Dips
+  aliases: [dip, chest dips]
+  primary: [triceps, chest]
+  secondary: [front_delts]
+
+# --- Shoulders ---
+overhead_press:
+  name: Overhead Press
+  aliases: [ohp, military press, shoulder press]
+  primary: [front_delts, side_delts]
+  secondary: [triceps, traps]
+lateral_raise:
+  name: Lateral Raise
+  aliases: [side raise, lateral raises]
+  primary: [side_delts]
+  secondary: [traps]
+rear_delt_fly:
+  name: Rear Delt Fly
+  aliases: [reverse fly, reverse pec deck]
+  primary: [rear_delts]
+  secondary: [rhomboids, traps]
+face_pull:
+  name: Face Pull
+  aliases: [face pulls]
+  primary: [rear_delts, rhomboids]
+  secondary: [traps, biceps]
+shrug:
+  name: Shrug
+  aliases: [shrugs, barbell shrug]
+  primary: [traps]
+  secondary: [forearms]
+
+# --- Back ---
+pull_up:
+  name: Pull-Up
+  aliases: [pullup, pull ups, chin up, chin-up]
+  primary: [lats]
+  secondary: [biceps, rhomboids, forearms]
+lat_pulldown:
+  name: Lat Pulldown
+  aliases: [pulldown]
+  primary: [lats]
+  secondary: [biceps, rhomboids]
+barbell_row:
+  name: Barbell Row
+  aliases: [bent over row, row, pendlay row]
+  primary: [lats, rhomboids]
+  secondary: [rear_delts, biceps, lower_back]
+seated_cable_row:
+  name: Seated Cable Row
+  aliases: [cable row, seated row]
+  primary: [rhomboids, lats]
+  secondary: [rear_delts, biceps]
+deadlift:
+  name: Deadlift
+  aliases: [conventional deadlift, dl]
+  primary: [hamstrings, glutes, lower_back]
+  secondary: [quads, traps, forearms, lats]
+romanian_deadlift:
+  name: Romanian Deadlift
+  aliases: [rdl]
+  primary: [hamstrings, glutes]
+  secondary: [lower_back, forearms]
+
+# --- Legs ---
+squat:
+  name: Back Squat
+  aliases: [back squat, barbell squat, squats]
+  primary: [quads, glutes]
+  secondary: [adductors, hamstrings, lower_back, abs]
+front_squat:
+  name: Front Squat
+  primary: [quads]
+  secondary: [glutes, abs, adductors]
+leg_press:
+  name: Leg Press
+  primary: [quads, glutes]
+  secondary: [hamstrings, adductors]
+lunge:
+  name: Lunge
+  aliases: [lunges, walking lunge]
+  primary: [quads, glutes]
+  secondary: [hamstrings, adductors, calves]
+bulgarian_split_squat:
+  name: Bulgarian Split Squat
+  aliases: [bss, split squat]
+  primary: [quads, glutes]
+  secondary: [adductors, hamstrings]
+hip_thrust:
+  name: Hip Thrust
+  aliases: [glute bridge, hip thrusts]
+  primary: [glutes]
+  secondary: [hamstrings, quads]
+leg_extension:
+  name: Leg Extension
+  aliases: [leg extensions]
+  primary: [quads]
+leg_curl:
+  name: Leg Curl
+  aliases: [hamstring curl, lying leg curl]
+  primary: [hamstrings]
+  secondary: [calves]
+adductor_machine:
+  name: Adductor Machine
+  aliases: [hip adduction]
+  primary: [adductors]
+calf_raise:
+  name: Calf Raise
+  aliases: [calf raises, standing calf raise]
+  primary: [calves]
+kettlebell_swing:
+  name: Kettlebell Swing
+  aliases: [kb swing]
+  primary: [glutes, hamstrings]
+  secondary: [lower_back, front_delts, abs]
+
+# --- Arms ---
+biceps_curl:
+  name: Biceps Curl
+  aliases: [curl, bicep curl, barbell curl, dumbbell curl]
+  primary: [biceps]
+  secondary: [forearms]
+hammer_curl:
+  name: Hammer Curl
+  primary: [biceps, forearms]
+triceps_pushdown:
+  name: Triceps Pushdown
+  aliases: [pushdown, tricep pushdown, rope pushdown]
+  primary: [triceps]
+skull_crusher:
+  name: Skull Crusher
+  aliases: [skullcrusher, lying triceps extension]
+  primary: [triceps]
+
+# --- Core ---
+plank:
+  name: Plank
+  primary: [abs, obliques]
+  secondary: [front_delts, glutes]
+crunch:
+  name: Crunch
+  aliases: [crunches, sit up]
+  primary: [abs]
+  secondary: [obliques]
+hanging_leg_raise:
+  name: Hanging Leg Raise
+  aliases: [leg raise, hanging leg raises]
+  primary: [abs]
+  secondary: [obliques, forearms]
+russian_twist:
+  name: Russian Twist
+  primary: [obliques]
+  secondary: [abs]
