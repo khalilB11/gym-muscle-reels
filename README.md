@@ -153,3 +153,23 @@ defined for one side and mirrored.
 ```bash
 pytest
 ```
+
+## Spec-driven development
+
+This repo uses [GitHub Spec Kit](https://github.com/github/spec-kit). Every new feature starts as a spec.
+
+- `.specify/memory/constitution.md`: project principles every plan is checked against
+- `specs/001-reel-rendering/spec.md`: baseline spec of what v0.1.0 does
+- `.claude/skills/speckit-*`: the workflow commands for Claude Code
+
+In Claude Code, from the repo root:
+
+```
+/speckit-specify  Pin muscle highlights onto the athlete using pose tracking
+/speckit-clarify      # optional: resolve open questions
+/speckit-plan         # technical plan, checked against the constitution
+/speckit-tasks        # ordered task list
+/speckit-implement    # build it, tests first
+```
+
+Each feature gets its own `specs/NNN-name/` folder and branch.
