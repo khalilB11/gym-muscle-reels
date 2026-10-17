@@ -1,4 +1,5 @@
 """T008: layout model, presets, safe-zone snapping, per-segment overrides."""
+import pytest
 from dataclasses import replace
 from pathlib import Path
 
@@ -101,3 +102,23 @@ def test_moving_an_element_of_a_card_layout_converts_it_to_free():
     assert card_box[0] < e.front.x < card_box[2] and card_box[1] < e.front.y < card_box[3]
     names = [s.name for s in build_sprites(proj, seg)]
     assert names == ["title", "card", "front", "back", "legend"]
+
+
+@pytest.mark.parametrize("preset", ["split-corners", "back-only-large"])
+@pytest.mark.parametrize("ex", ["deadlift", "bench_press"])
+def test_element_boxes_match_drawn_sprites(preset, ex):
+    from musclereels.overlay import build_sprites, element_boxes
+    seg = make_segment({"exercise": ex, "start": 0, "end": 2, "subtitle": "4 x 8"}, ExerciseDB())
+    proj = Project(input=Path("x.mp4"), segments=[seg], layout=builtin_presets()[preset])
+    drawn = {s.name: s.box for s in build_sprites(proj, seg) if s.name != "card"}
+    assert element_boxes(proj, seg) == drawn
+
+
+def test_card_layout_boxes_are_its_per_element_equivalent():
+    from musclereels.overlay import build_sprites, element_boxes, materialize_card
+    seg = make_segment({"exercise": "squat", "start": 0, "end": 2}, ExerciseDB())
+    proj = Project(input=Path("x.mp4"), segments=[seg], layout=builtin_presets()["card-left"])
+    free = materialize_card(proj, seg, proj.layout, "per_element")
+    proj_free = Project(input=Path("x.mp4"), segments=[seg], layout=free)
+    drawn = {s.name: s.box for s in build_sprites(proj_free, seg) if s.name != "card"}
+    assert element_boxes(proj, seg) == drawn

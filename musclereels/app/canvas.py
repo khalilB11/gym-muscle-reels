@@ -6,6 +6,7 @@ from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView
 
 from ..layout import CANVAS_H, CANVAS_W, SAFE_BOTTOM, SAFE_LEFT, SAFE_RIGHT, SAFE_TOP
+from .handles import ElementHandle, HandleSignals
 
 
 class Canvas(QGraphicsView):
@@ -55,8 +56,29 @@ class Canvas(QGraphicsView):
         border.setVisible(False)
         self._safe_items.append(border)
         self.has_frame = False
+        self.handle_signals = HandleSignals()
+        self.handles: dict[str, ElementHandle] = {}
+        self.editable = True
 
     # -- content ---------------------------------------------------------------
+    def set_boxes(self, boxes: dict) -> None:
+        """Place drag handles over the overlay elements of the current frame."""
+        for name, box in boxes.items():
+            h = self.handles.get(name)
+            if h is None:
+                h = ElementHandle(name, self.handle_signals)
+                self.scene().addItem(h)
+                self.handles[name] = h
+            h.set_box(box)
+            h.setVisible(self.editable)
+        for name in list(self.handles):
+            if name not in boxes and not self.handles[name].dragging:
+                self.scene().removeItem(self.handles.pop(name))
+
+    @property
+    def is_dragging(self) -> bool:
+        return any(h.dragging for h in self.handles.values())
+
     def set_frame(self, image: QImage) -> None:
         pix = QPixmap.fromImage(image)
         self.video_item.setPixmap(pix)
@@ -65,6 +87,7 @@ class Canvas(QGraphicsView):
         self.has_frame = True
 
     def clear(self) -> None:
+        self.set_boxes({})
         self.video_item.setPixmap(QPixmap())
         self._placeholder.setVisible(True)
         self.has_frame = False

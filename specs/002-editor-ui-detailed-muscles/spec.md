@@ -52,7 +52,7 @@ caption area, export, and confirm the export matches the preview.
 2. **Given** both figures, **When** the user hides one, **Then** only the other is shown and exported.
 3. **Given** the user places a figure partly inside Instagram's reserved areas, **When** they release it, **Then** the reserved areas are shown and the figure snaps back inside the safe zone (with a way to override deliberately).
 4. **Given** the user has a layout they like, **When** they save it as a named layout preset, **Then** they can apply it to other projects in one click.
-5. **Given** figure placement, **When** the user toggles the card background, legend chips and "FRONT/BACK" labels, **Then** each can be turned on or off independently.
+5. **Given** figure placement, **When** the user toggles the title, card background, legend chips and "FRONT/BACK" labels, or lowers the panel opacity, **Then** each changes independently, so a reel can show only the figures on a see-through panel.
 6. **Given** several segments (Story 3), **When** the user changes a figure's position for one segment only, **Then** other segments keep the project's default placement.
 
 ---
@@ -143,6 +143,7 @@ movable/resizable on the canvas.
 
 - **FR-009**: The front figure and back figure MUST each be independently movable, resizable (proportions locked), and showable/hideable.
 - **FR-010**: Users MUST be able to toggle the card background, the legend, and view labels independently, and choose where the legend sits.
+- **FR-010a**: Users MUST be able to turn every text element off (title, muscle names, FRONT/BACK labels) so a reel can show the figures only, and set the panel background opacity from 0 % (fully see-through) to 100 %.
 - **FR-011**: The canvas MUST show Instagram's reserved areas while editing and keep overlay elements inside the safe zone by default, with an explicit override.
 - **FR-012**: Placement MUST have a project default with optional per-segment overrides.
 - **FR-013**: Users MUST be able to save, name, apply, and delete layout presets; presets MUST be reusable across projects.

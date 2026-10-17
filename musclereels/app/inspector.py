@@ -4,11 +4,16 @@ from __future__ import annotations
 import math
 from typing import Optional
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFormLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                               QSlider, QVBoxLayout, QWidget)
 
 from ..bodymap import display_name
+from ..layout import Layout
 from ..project import Segment
+from ..theme import Theme
+
+BACKGROUNDS = [("One for everything", "grouped"), ("One per item", "per_element"), ("None", "none")]
 
 
 def fmt_time(t: float) -> str:
@@ -21,6 +26,7 @@ def fmt_time(t: float) -> str:
 class Inspector(QWidget):
     title_edited = Signal(str)
     subtitle_edited = Signal(str)
+    overlay_changed = Signal(str, object)      # key, value: show_<element>, labels, background, opacity
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -42,11 +48,80 @@ class Inspector(QWidget):
         lay.setContentsMargins(8, 8, 8, 8)
         lay.addWidget(head)
         lay.addLayout(form)
+        lay.addWidget(self._build_overlay_box())
         lay.addStretch(1)
         self.title.editingFinished.connect(lambda: self.title_edited.emit(self.title.text().strip()))
         self.subtitle.editingFinished.connect(lambda: self.subtitle_edited.emit(self.subtitle.text().strip()))
         self.setMinimumWidth(260)
         self.set_segment(None)
+
+    def _build_overlay_box(self) -> QGroupBox:
+        box = QGroupBox("Overlay")
+        self.show_title = QCheckBox("Title text")
+        self.show_legend = QCheckBox("Muscle names")
+        self.show_labels = QCheckBox("FRONT / BACK labels")
+        self.show_front = QCheckBox("Front figure")
+        self.show_back = QCheckBox("Back figure")
+        self.background = QComboBox()
+        for text, key in BACKGROUNDS:
+            self.background.addItem(text, key)
+        self.opacity = QSlider(Qt.Horizontal)
+        self.opacity.setRange(0, 100)
+        self.opacity_label = QLabel()
+        self.opacity_label.setMinimumWidth(36)
+        op_row = QHBoxLayout()
+        op_row.addWidget(self.opacity, 1)
+        op_row.addWidget(self.opacity_label)
+        hint = QLabel("Drag a figure on the preview to move it; drag its corner to resize.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: gray; font-size: 11px;")
+        form = QFormLayout(box)
+        texts = QVBoxLayout()
+        for cb in (self.show_title, self.show_legend, self.show_labels):
+            texts.addWidget(cb)
+        figs = QVBoxLayout()
+        for cb in (self.show_front, self.show_back):
+            figs.addWidget(cb)
+        form.addRow("Text", texts)
+        form.addRow("Figures", figs)
+        form.addRow("Panel", self.background)
+        form.addRow("Opacity", op_row)
+        form.addRow(hint)
+        for key, cb in (("show_title", self.show_title), ("show_legend", self.show_legend),
+                        ("labels", self.show_labels), ("show_front", self.show_front),
+                        ("show_back", self.show_back)):
+            cb.toggled.connect(lambda on, k=key: self.overlay_changed.emit(k, on))
+        self.background.currentIndexChanged.connect(
+            lambda i: self.overlay_changed.emit("background", self.background.itemData(i)))
+        self.opacity.valueChanged.connect(self._opacity_moved)
+        self.overlay_box = box
+        return box
+
+    def _opacity_moved(self, v: int) -> None:
+        self.opacity_label.setText(f"{v}%")
+        self.overlay_changed.emit("opacity", v)
+
+    def set_overlay(self, layout: Optional[Layout], theme: Optional[Theme]) -> None:
+        """Show the current settings without emitting change signals."""
+        self.overlay_box.setEnabled(layout is not None)
+        if layout is None:
+            return
+        widgets = (self.show_title, self.show_legend, self.show_labels, self.show_front, self.show_back,
+                   self.background, self.opacity)
+        for w in widgets:
+            w.blockSignals(True)
+        self.show_title.setChecked(layout.title.visible)
+        self.show_legend.setChecked(layout.legend.visible)
+        self.show_labels.setChecked(layout.labels)
+        self.show_front.setChecked(layout.front.visible)
+        self.show_back.setChecked(layout.back.visible)
+        style = "grouped" if layout.mode == "card" else layout.card
+        self.background.setCurrentIndex(self.background.findData(style))
+        pct = round(theme.card[3] / 255 * 100)
+        self.opacity.setValue(pct)
+        self.opacity_label.setText(f"{pct}%")
+        for w in widgets:
+            w.blockSignals(False)
 
     def set_segment(self, seg: Optional[Segment], exercise_name: str = "") -> None:
         for w in (self.title, self.subtitle):

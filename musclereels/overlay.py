@@ -202,8 +202,12 @@ def _card_fit_scale(title, subtitle, primary, secondary, theme, layout: Layout, 
         scale -= 0.05
 
 
-def materialize_card(project, segment, layout: Layout) -> Layout:
-    """Turn a card-mode layout into an equivalent free layout for this segment (used before dragging)."""
+def materialize_card(project, segment, layout: Layout, style: str = "grouped") -> Layout:
+    """Turn a card-mode layout into an equivalent free layout for this segment (used before dragging).
+
+    style "grouped" keeps one panel around everything; "per_element"/"none" give each element its own
+    panel (or none), sized so the figures keep their size and place.
+    """
     primary, secondary = segment_muscles(segment)
     scale, card_y = _card_fit_scale(segment.title, segment.subtitle, primary, secondary, project.theme,
                                     layout, project.card_scale)
@@ -212,25 +216,41 @@ def materialize_card(project, segment, layout: Layout) -> Layout:
     cx = _card_x(layout.card_position, g["w"])
     pad, fig_w = g["pad"], g["fig_w"]
     pl = {"title": ElementPlacement(layout.title.visible, SAFE_LEFT, SAFE_TOP, CANVAS_W - 2 * SAFE_LEFT)}
+    per = style == "per_element"
     for v in ("front", "back"):
         i = views.index(v) if v in views else 0
-        pl[v] = ElementPlacement(v in views, cx + pad + i * (fig_w + pad), card_y + pad, fig_w)
+        x, y, w = cx + pad + i * (fig_w + pad), card_y + pad, fig_w
+        if per:                                  # element width includes its own padding
+            w = round(fig_w * 254 / 210)
+            p = round(22 * w / 254)
+            x, y = x - p, y - p
+        pl[v] = ElementPlacement(v in views, x, y, w)
     legend_y = card_y + pad + ((g["label_h"] + g["fig_h"] + pad) if views else 0)
-    pl["legend"] = ElementPlacement(layout.legend.visible, cx + pad, legend_y, g["inner_w"])
-    return Layout(mode="free", card="grouped", labels=layout.labels, **pl)
+    lx, ly, lw = cx + pad, legend_y, g["inner_w"]
+    if per:
+        lx, ly, lw = lx - 22, ly - 22, lw + 44
+    pl["legend"] = ElementPlacement(layout.legend.visible, lx, ly, lw)
+    return Layout(mode="free", card=style, labels=layout.labels, **pl)
 
 
 # --- free mode ---------------------------------------------------------------------
 
-def _figure_element(view, primary, secondary, theme: Theme, width: int, style: str, labels: bool,
-                    x: int, y: int) -> Sprite:
+def _figure_metrics(width: int, style: str, labels: bool) -> dict:
     per = style == "per_element"
     s = width / (254 if per else 210)
     pad = round(22 * s) if per else 0
     fig_w = max(20, width - 2 * pad)
     label_h = round(34 * s) if labels else 0
     fig_h = round(FIG_H * fig_w / FIG_W)
-    w, h = width, pad + label_h + fig_h + pad
+    return dict(per=per, s=s, pad=pad, fig_w=fig_w, label_h=label_h, fig_h=fig_h,
+                w=width, h=pad + label_h + fig_h + pad)
+
+
+def _figure_element(view, primary, secondary, theme: Theme, width: int, style: str, labels: bool,
+                    x: int, y: int) -> Sprite:
+    m = _figure_metrics(width, style, labels)
+    per, s, pad, fig_w, label_h = m["per"], m["s"], m["pad"], m["fig_w"], m["label_h"]
+    w, h = m["w"], m["h"]
     label_font = load_font(max(8, round(20 * s)), True, theme.font)
 
     def draw(lit: bool) -> Image.Image:
@@ -301,6 +321,38 @@ def _free_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layou
     if layout.card == "grouped" and body:
         sprites.append(_panel_sprite([s.box for s in body], theme))
     return sprites + body
+
+
+def element_boxes(project, segment, layout: Layout | None = None) -> dict[str, tuple[int, int, int, int]]:
+    """Boxes (x0, y0, x1, y1, export px) of title / front / back / legend as they are drawn, without
+    rasterising the figures. Card layouts report the boxes of their per-element equivalent, which is
+    what dragging an element turns them into."""
+    layout = layout or effective_layout(project, segment)
+    if layout.mode == "card":
+        layout = materialize_card(project, segment, layout, "per_element")
+    primary, secondary = segment_muscles(segment)
+    boxes: dict[str, tuple[int, int, int, int]] = {}
+    if layout.title.visible:
+        p = layout.title
+        w, h = _title_sprite(segment.title, segment.subtitle, project.theme, max(100, p.width)).size
+        x = p.x + (p.width - w) // 2
+        boxes["title"] = (x, p.y, x + w, p.y + h)
+    sizes = {}
+    for v in ("front", "back"):
+        p = layout.placement(v)
+        if p.visible:
+            m = _figure_metrics(max(40, p.width), layout.card, layout.labels)
+            sizes[v] = (m["w"], m["h"])
+    if layout.legend.visible:
+        p = layout.legend
+        pad = 22 if layout.card == "per_element" else 0
+        _, chips_h, used = _chips(primary, secondary, project.theme, max(60, max(60, p.width) - 2 * pad), 1.0)
+        if chips_h:
+            sizes["legend"] = (max(60, p.width) if pad else max(1, used), chips_h + 2 * pad)
+    for name, (w, h) in sizes.items():
+        snapped = snap_to_safe_zone(layout.placement(name), (w, h))
+        boxes[name] = (snapped.x, snapped.y, snapped.x + w, snapped.y + h)
+    return boxes
 
 
 # --- public API --------------------------------------------------------------------

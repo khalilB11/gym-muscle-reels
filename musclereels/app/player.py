@@ -15,6 +15,7 @@ import numpy as np
 from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QImage
 
+from ..overlay import element_boxes
 from ..project import Project
 from ..render import SpriteCache, frame_for_time
 from ..video import VideoSource
@@ -29,8 +30,11 @@ def to_qimage(frame: np.ndarray) -> QImage:
 
 
 class FrameWorker(QObject):
-    """Lives on a worker thread. Only the most recent request is rendered (older ones are dropped)."""
-    frameReady = Signal(float, QImage)
+    """Lives on a worker thread. Only the most recent request is rendered (older ones are dropped).
+
+    frameReady carries the frame and the boxes (export pixels) of the overlay elements drawn on it.
+    """
+    frameReady = Signal(float, QImage, object)
     failed = Signal(str)
     _wake = Signal()
 
@@ -80,7 +84,9 @@ class FrameWorker(QObject):
                 self._frames.clear()
             frame = frame_for_time(project, t, source_frame=self._source_frame(t), scale=PREVIEW_SCALE,
                                    cache=self._sprites)
-            self.frameReady.emit(t, to_qimage(frame))
+            seg = project.segment_at(t)
+            boxes = element_boxes(project, seg) if seg is not None else {}
+            self.frameReady.emit(t, to_qimage(frame), boxes)
         except Exception as e:                        # keep the worker alive; report to the UI
             self.failed.emit(str(e))
 
@@ -92,7 +98,7 @@ class FrameWorker(QObject):
 
 class Player(QObject):
     """UI-side controller: position, play/pause clock, and frame requests to the worker."""
-    frameReady = Signal(float, QImage)
+    frameReady = Signal(float, QImage, object)
     positionChanged = Signal(float)
     playingChanged = Signal(bool)
     failed = Signal(str)

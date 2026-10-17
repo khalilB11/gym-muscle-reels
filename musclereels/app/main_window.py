@@ -1,18 +1,22 @@
 """Editor main window: exercises | 9:16 preview | inspector, with transport and export."""
 from __future__ import annotations
 
+import copy
 import math
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable, Optional
 
 from PySide6.QtCore import QSettings, Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QKeySequence, QUndoCommand, QUndoStack
 from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
                                QProgressDialog, QPushButton, QSlider, QSplitter, QStyle, QToolBar, QVBoxLayout,
                                QWidget)
 
 from .. import __version__
 from ..exercises import ExerciseDB
+from ..layout import snap_to_safe_zone
+from ..overlay import materialize_card
 from ..project import Project, ProjectError, Segment, load_project, make_segment, save_project
 from ..video import VideoError, VideoSource
 from .canvas import Canvas
@@ -23,6 +27,34 @@ from .player import Player
 
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"}
 PROJECT_EXT = {".yaml", ".yml"}
+MERGE_OPACITY = 1                  # consecutive opacity-slider moves become one undo step
+
+
+class _Snapshot(QUndoCommand):
+    """Undo step holding the whole project before and after an edit (projects are small)."""
+
+    def __init__(self, win: "MainWindow", text: str, before: Project, after: Project, merge_id: int = -1):
+        super().__init__(text)
+        self.win, self.before, self.after, self._merge_id = win, before, after, merge_id
+        self._applied = True       # the edit has already been made when the command is pushed
+
+    def id(self) -> int:
+        return self._merge_id
+
+    def mergeWith(self, other: QUndoCommand) -> bool:
+        if other.id() != self._merge_id or self._merge_id == -1:
+            return False
+        self.after = other.after
+        return True
+
+    def redo(self) -> None:
+        if self._applied:
+            self._applied = False
+            return
+        self.win._restore(self.after)
+
+    def undo(self) -> None:
+        self.win._restore(self.before)
 
 
 class MainWindow(QMainWindow):
@@ -38,6 +70,8 @@ class MainWindow(QMainWindow):
         self._confirm_discard = confirm_discard or self._ask_save_changes
         self._export_dialog: Optional[ExportDialog] = None
         self.settings = QSettings("musclereels", "musclereels")
+        self.undo_stack = QUndoStack(self)
+        self._drag_before: Optional[Project] = None
 
         self.player = Player(self)
         self.canvas = Canvas()
@@ -61,7 +95,7 @@ class MainWindow(QMainWindow):
         self.setAcceptDrops(True)
         self.resize(1180, 820)
 
-        self.player.frameReady.connect(lambda t, img: self.canvas.set_frame(img))
+        self.player.frameReady.connect(self._on_frame)
         self.player.positionChanged.connect(self._on_position)
         self.player.playingChanged.connect(self._on_playing)
         self.player.failed.connect(lambda msg: self.show_error(f"Preview error: {msg}"))
@@ -72,6 +106,11 @@ class MainWindow(QMainWindow):
         self.exercise_panel.custom_requested.connect(self.add_custom)
         self.inspector.title_edited.connect(self.set_title)
         self.inspector.subtitle_edited.connect(self.set_subtitle)
+        self.inspector.overlay_changed.connect(self.set_overlay_option)
+        hs = self.canvas.handle_signals
+        hs.started.connect(self._drag_started)
+        hs.changing.connect(lambda n, dx, dy, dw: self._drag_apply(n, dx, dy, dw, final=False))
+        hs.finished.connect(lambda n, dx, dy, dw: self._drag_apply(n, dx, dy, dw, final=True))
         self._update_ui()
 
     # -- construction ------------------------------------------------------------
@@ -93,6 +132,13 @@ class MainWindow(QMainWindow):
         self.act_save_as = act("Save As…", self._save_as_dialog, QKeySequence.SaveAs)
         tb.addSeparator()
         self.act_export = act("Export reel…", self._export_dialog_open, QKeySequence("Ctrl+E"))
+        tb.addSeparator()
+        self.act_undo = self.undo_stack.createUndoAction(self, "Undo")
+        self.act_undo.setShortcut(QKeySequence.Undo)
+        self.act_redo = self.undo_stack.createRedoAction(self, "Redo")
+        self.act_redo.setShortcut(QKeySequence.Redo)
+        tb.addAction(self.act_undo)
+        tb.addAction(self.act_redo)
         tb.addSeparator()
         self.act_safe = act("Safe zones", self.canvas.set_safe_zones_visible)
         self.act_safe.setCheckable(True)
@@ -133,6 +179,22 @@ class MainWindow(QMainWindow):
         self.player.update_project(self.project)
         self._update_ui()
 
+    def _edit(self, text: str, fn: Callable[[], None], merge_id: int = -1) -> None:
+        """Run an edit on self.project and record it as one undo step."""
+        before = copy.deepcopy(self.project)
+        fn()
+        if self.project == before:          # nothing changed: no undo step
+            return
+        self.undo_stack.push(_Snapshot(self, text, before, copy.deepcopy(self.project), merge_id))
+        self._mark_dirty()
+
+    def _restore(self, snapshot: Project) -> None:
+        path = self.project.path if self.project else None
+        self.project = copy.deepcopy(snapshot)
+        self.project.path = path
+        self.selected = min(self.selected, max(0, len(self.project.segments) - 1))
+        self._mark_dirty()
+
     def _update_ui(self) -> None:
         has = self.project is not None
         name = Path(self.project.path).name if has and self.project.path else (
@@ -143,6 +205,7 @@ class MainWindow(QMainWindow):
         self.act_export.setEnabled(bool(has and self.project.segments))
         self.exercise_panel.setEnabled(has)
         self.transport.setEnabled(has)
+        self.inspector.set_overlay(self.project.layout if has else None, self.project.theme if has else None)
         seg = self.current_segment()
         name = ""
         if seg is not None and seg.exercise:
@@ -180,6 +243,8 @@ class MainWindow(QMainWindow):
         self.exercise_panel.set_db(self.db)
         self.selected = 0
         self.is_dirty = False
+        self.undo_stack.clear()
+        self.canvas.set_boxes({})
         self.duration, self.fps = src.info.duration, src.info.fps
         src.close()
         self.slider.setRange(0, int(self.duration * 1000))
@@ -204,14 +269,16 @@ class MainWindow(QMainWindow):
             dlg.close()
 
     # -- editing -----------------------------------------------------------------
-    def _replace_segment(self, spec: dict) -> None:
+    def _replace_segment(self, spec: dict, text: str = "Change exercise") -> None:
         seg = make_segment(spec, self.db)
-        if self.project.segments:
-            self.project.segments[self.selected] = seg
-        else:
-            self.project.segments.append(seg)
-            self.selected = 0
-        self._mark_dirty()
+
+        def fn():
+            if self.project.segments:
+                self.project.segments[self.selected] = seg
+            else:
+                self.project.segments.append(seg)
+                self.selected = 0
+        self._edit(text, fn)
 
     def _whole_clip_spec(self) -> dict:
         return {"start": 0, "end": round(self.duration, 3)}
@@ -254,14 +321,74 @@ class MainWindow(QMainWindow):
             self.inspector.set_segment(seg)
             return
         if new != seg:
-            self.project.segments[self.selected] = new
-            self._mark_dirty()
+            self._edit("Edit text", lambda: self.project.segments.__setitem__(self.selected, new))
 
     def set_title(self, text: str) -> None:
         self._edit_current(title=text)
 
     def set_subtitle(self, text: str) -> None:
         self._edit_current(subtitle=text)
+
+    # -- overlay look ------------------------------------------------------------
+    def set_overlay_option(self, key: str, value) -> None:
+        """Inspector toggles: show_<element>, labels, background style, panel opacity (%)."""
+        if not self.project:
+            return
+        seg = self.current_segment()
+
+        def fn():
+            lay = self.project.layout
+            if key.startswith("show_"):
+                name = key[len("show_"):]
+                self.project.layout = replace(lay, **{name: replace(lay.placement(name), visible=bool(value))})
+            elif key == "labels":
+                self.project.layout = replace(lay, labels=bool(value))
+            elif key == "background":
+                if lay.mode == "card":
+                    if value != "grouped" and seg is not None:
+                        self.project.layout = materialize_card(self.project, seg, lay, value)
+                else:
+                    self.project.layout = replace(lay, card=value)
+            elif key == "opacity":
+                theme = copy.deepcopy(self.project.theme)
+                theme.card = (*theme.card[:3], round(int(value) / 100 * 255))
+                self.project.theme = theme
+
+        text = {"opacity": "Change background opacity", "background": "Change background"}.get(key, "Show/hide")
+        self._edit(text, fn, MERGE_OPACITY if key == "opacity" else -1)
+
+    # -- moving / resizing elements on the canvas ----------------------------------
+    def _on_frame(self, t: float, image, boxes: dict) -> None:
+        self.canvas.set_frame(image)
+        self.canvas.set_boxes(boxes)
+
+    def _drag_started(self, name: str) -> None:
+        seg = self.current_segment()
+        if not self.project or seg is None:
+            return
+        self.pause()
+        self._drag_before = copy.deepcopy(self.project)
+        if self.project.layout.mode == "card":     # the card becomes separate, movable items
+            self.project.layout = materialize_card(self.project, seg, self.project.layout, "per_element")
+        self._drag_base = self.project.layout
+
+    def _drag_apply(self, name: str, dx: float, dy: float, dw: float, final: bool) -> None:
+        if self._drag_before is None:
+            return
+        base = self._drag_base.placement(name)
+        p = replace(base, x=round(base.x + dx), y=round(base.y + dy), width=max(40, round(base.width + dw)))
+        if final:
+            x0, y0, x1, y1 = self.canvas.handles[name].scene_box()
+            size = (p.width if name == "title" else x1 - x0, y1 - y0)
+            p = snap_to_safe_zone(p, size)
+        self.project.layout = replace(self._drag_base, **{name: p})
+        if not final:
+            self.player.update_project(self.project)
+            return
+        before, self._drag_before = self._drag_before, None
+        what = "Resize" if dw else "Move"
+        self.undo_stack.push(_Snapshot(self, f"{what} {name}", before, copy.deepcopy(self.project)))
+        self._mark_dirty()
 
     # -- transport ---------------------------------------------------------------
     def seek(self, t: float) -> None:

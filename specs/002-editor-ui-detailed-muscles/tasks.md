@@ -99,16 +99,16 @@ description: "Task list for feature 002: Reel Editor App with Detailed Muscle Ma
 
 ### Tests (write first, must fail)
 
-- [ ] T033 [P] [US2] Write `tests/app/test_layout_editing.py`: drag the back figure item by (−300, +400) → project layout updated; release inside the bottom reserved area → snapped to y + height ≤ 1470; Alt-drag keeps it outside and sets `allow_outside_safe_zone: true`; corner-resize keeps aspect; hide front → not in exported frame; Ctrl+Z restores each step, Ctrl+Shift+Z redoes
+- [X] T033 [P] [US2] Write `tests/app/test_layout_editing.py`: drag the back figure item by (−300, +400) → project layout updated; release inside the bottom reserved area → snapped to y + height ≤ 1470; Alt-drag keeps it outside and sets `allow_outside_safe_zone: true`; corner-resize keeps aspect; hide front → not in exported frame; Ctrl+Z restores each step, Ctrl+Shift+Z redoes
 - [ ] T034 [P] [US2] Write `tests/app/test_presets.py`: save current layout as "back-big" → YAML in the config dir (tmp via `QStandardPaths.setTestModeEnabled(True)`); apply it in a new project; delete it; built-ins can't be deleted
 - [ ] T035 [P] [US2] Write `tests/app/test_segment_override.py`: with 2 segments, "This segment only" then moving the front figure changes only segment 2's `layout` override; segment 1 keeps the default
 
 ### Implementation
 
-- [ ] T036 [US2] Implement `musclereels/app/commands.py`: `QUndoCommand`s `MovePlacement`, `ResizePlacement`, `SetVisibility`, `SetCardMode`, `ApplyPreset`, `SetText`, `AddSegment`, `RemoveSegment`, `EditSegment`, all mutating the `Project` and emitting `projectChanged`; route T028's text edits through `SetText`; one `QUndoStack` in `MainWindow` with toolbar Undo/Redo (FR-008)
-- [ ] T037 [US2] Implement `musclereels/app/figure_item.py`: `ElementItem(QGraphicsPixmapItem)` movable with 4 corner handles (aspect locked), live pixmap scaling during resize then debounced (100 ms) re-raster via `build_sprites` for that element only; on release call `snap_to_safe_zone` unless Alt held; push commands from T036
-- [ ] T038 [US2] Make `canvas.py` items editable: replace static sprites with `ElementItem`s for title/front/back/legend; selection outline; reserved areas shown while dragging; minimum-size warning when a figure width < 120 px
-- [ ] T039 [P] [US2] Add Elements section in `musclereels/app/inspector.py`: visibility checkboxes for Front/Back/Title/Legend, Card mode combo (`grouped`/`per_element`/`none`), View labels toggle, legend position follows its item
+- [X] T036 [US2] Undo/redo (FR-008): one `QUndoStack` in `musclereels/app/main_window.py` with toolbar Undo/Redo; every edit (exercise, text, visibility, panel style, opacity, move, resize) is recorded as a whole-project snapshot command (`_Snapshot`), consecutive opacity-slider moves merge into one step
+- [X] T037 [US2] Implement `musclereels/app/figure_item.py`: `ElementItem(QGraphicsPixmapItem)` movable with 4 corner handles (aspect locked), live pixmap scaling during resize then debounced (100 ms) re-raster via `build_sprites` for that element only; on release call `snap_to_safe_zone` unless Alt held; push commands from T036
+- [X] T038 [US2] Make `canvas.py` items editable: replace static sprites with `ElementItem`s for title/front/back/legend; selection outline; reserved areas shown while dragging; minimum-size warning when a figure width < 120 px
+- [X] T039 [P] [US2] Add Overlay section in `musclereels/app/inspector.py`: checkboxes for Title text, Muscle names, FRONT/BACK labels, Front figure, Back figure; Panel combo (`grouped`/`per_element`/`none`); panel Opacity slider 0–100 % (FR-010a)
 - [ ] T040 [P] [US2] Implement `musclereels/app/presets_store.py` and toolbar "Preset ▾" menu: list built-ins + user presets from `QStandardPaths.AppConfigLocation/presets/*.yaml`, Save current…, Delete (user only), apply via `ApplyPreset`
 - [ ] T041 [US2] Add right-click menu "This segment only" / "Reset to project default" on `ElementItem`s; edits while active write a `SegmentLayoutOverride` on the selected segment
 - [ ] T042 [US2] Run T033–T035 green and quickstart §4 steps 3–4
