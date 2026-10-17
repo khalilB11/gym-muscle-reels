@@ -72,8 +72,10 @@ Resolved at **Simple** level: a group is primary if any of its muscles is primar
 
 | Field | Type |
 |---|---|
-| `title`, `front`, `back`, `legend` | ElementPlacement |
-| `card` | `grouped` \| `per_element` \| `none` |
+| `mode` | `card` (v0.1 look, geometry computed per segment) \| `free` (each element placed) |
+| `card_position` | `left` \| `right` \| `center` (card mode only) |
+| `title`, `front`, `back`, `legend` | ElementPlacement (card mode uses only `visible`) |
+| `card` | `grouped` \| `per_element` \| `none` (free mode) |
 | `labels` | bool (FRONT/BACK view labels) |
 
 **LayoutPreset** = `name` + Layout. Built-ins: `card-left`, `card-right`, `card-center` (equal to 001's positions), `split-corners` (front bottom-left, back top-right), `back-only-large`.

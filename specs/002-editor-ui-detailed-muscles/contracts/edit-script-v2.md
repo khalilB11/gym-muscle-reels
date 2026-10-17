@@ -8,6 +8,12 @@ Shared by the CLI (`musclereels render project.yaml`) and the app (Open/Save). E
 2. The app always writes `version: 2`. The CLI reads v1 and v2.
 3. Unknown top-level or segment keys are an error that names the key and line.
 4. Coordinates are canvas pixels (1080×1920). Paths are relative to the project file.
+5. A layout is in one of two modes. **card** (`card-left/right/center` presets, or `{mode: card, position: left}`):
+   the v0.1 look, with geometry computed from the content per segment; only `visible` and `labels` apply.
+   **free** (any object without `mode: card`): every element has its own box. Moving an element of a
+   card layout (in the app or via a segment override with `x`/`y`/`width`) converts it to an
+   equivalent free layout first. In free mode, elements are kept inside the safe zone at render time
+   using their real size, unless `allow_outside_safe_zone: true`.
 
 ## Example
 

@@ -1,0 +1,22 @@
+# Built-in layout presets. Coordinates are canvas pixels (1080x1920).
+# card-* reproduce the v0.1 look (one card, geometry computed from the content).
+
+card-left:   {mode: card, position: left}
+card-right:  {mode: card, position: right}
+card-center: {mode: card, position: center}
+
+split-corners:          # front bottom-left, back top-right, legend bottom-right
+  card: per_element
+  labels: true
+  title:  {visible: true, x: 60,  y: 250,  width: 960}
+  front:  {visible: true, x: 60,  y: 960,  width: 240}
+  back:   {visible: true, x: 660, y: 430,  width: 240}
+  legend: {visible: true, x: 320, y: 1320, width: 560}
+
+back-only-large:        # one big back view, e.g. for pulls, hinges, glutes
+  card: per_element
+  labels: false
+  title:  {visible: true,  x: 60,  y: 250,  width: 960}
+  front:  {visible: false, x: 60,  y: 560,  width: 360}
+  back:   {visible: true,  x: 60,  y: 560,  width: 360}
+  legend: {visible: true,  x: 450, y: 1320, width: 450}

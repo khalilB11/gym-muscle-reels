@@ -1,0 +1,40 @@
+# Muscle registry.
+#
+# groups:  the 18 Simple-level muscle groups (spec 001). Order = legend order.
+# aliases: friendly names that expand to one or more groups (or, later, muscles).
+# muscles: Detailed-level muscles (spec 002, added in Phase 5 / US4).
+
+groups:
+  chest:       {name: Chest}
+  front_delts: {name: Front Delts}
+  side_delts:  {name: Side Delts}
+  rear_delts:  {name: Rear Delts}
+  traps:       {name: Traps}
+  rhomboids:   {name: Upper Back}
+  lats:        {name: Lats}
+  lower_back:  {name: Lower Back}
+  biceps:      {name: Biceps}
+  triceps:     {name: Triceps}
+  forearms:    {name: Forearms}
+  abs:         {name: Abs}
+  obliques:    {name: Obliques}
+  glutes:      {name: Glutes}
+  quads:       {name: Quads}
+  hamstrings:  {name: Hamstrings}
+  adductors:   {name: Adductors}
+  calves:      {name: Calves}
+
+aliases:
+  pecs: [chest]
+  delts: [front_delts, side_delts, rear_delts]
+  shoulders: [front_delts, side_delts, rear_delts]
+  upper_back: [rhomboids]
+  back: [lats, rhomboids, traps]
+  core: [abs, obliques]
+  erectors: [lower_back]
+  hams: [hamstrings]
+  quadriceps: [quads]
+  glute: [glutes]
+  calf: [calves]
+
+muscles: {}

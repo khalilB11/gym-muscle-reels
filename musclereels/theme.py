@@ -35,6 +35,16 @@ class Theme:
     font: str | None = None                  # path to a bold .ttf/.otf
     font_regular: str | None = None
 
+    def to_dict(self, only_changed: bool = False) -> dict:
+        default = Theme()
+        out = {}
+        for f in fields(self):
+            v = getattr(self, f.name)
+            if only_changed and v == getattr(default, f.name):
+                continue
+            out[f.name] = v if f.name.startswith("font") else "#" + "".join(f"{c:02X}" for c in v)
+        return out
+
     @classmethod
     def from_dict(cls, data: dict | None) -> "Theme":
         theme = cls()

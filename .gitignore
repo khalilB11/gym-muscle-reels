@@ -15,6 +15,7 @@ venv/
 *.mkv
 *.png
 !docs/*.png
+!tests/golden/**/*.png
 demo/
 out/
 clips/

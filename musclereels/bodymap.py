@@ -6,10 +6,11 @@ one side of the body and mirrored, so tweaking a muscle means editing one list.
 from __future__ import annotations
 
 import math
-import re
 from typing import Iterable
 
 from PIL import Image, ImageDraw, ImageFilter
+
+from .muscles import normalize, registry  # noqa: F401  (normalize re-exported)
 
 W, H = 200, 440
 
@@ -93,71 +94,49 @@ SHAPES: dict[str, dict[str, list[Poly]]] = {
     },
 }
 
-# Public muscle ids -> display name and the shapes they light up.
+# Simple group id -> the body-map regions it lights up (names/aliases live in data/muscles.yaml).
+GROUP_SHAPES: dict[str, list[tuple[str, str]]] = {
+    "chest":       [("front", "chest")],
+    "front_delts": [("front", "front_delts")],
+    "side_delts":  [("front", "front_delts"), ("back", "rear_delts")],
+    "rear_delts":  [("back", "rear_delts")],
+    "traps":       [("front", "traps"), ("back", "traps")],
+    "rhomboids":   [("back", "rhomboids")],
+    "lats":        [("back", "lats")],
+    "lower_back":  [("back", "lower_back")],
+    "biceps":      [("front", "biceps")],
+    "triceps":     [("back", "triceps")],
+    "forearms":    [("front", "forearms"), ("back", "forearms")],
+    "abs":         [("front", "abs")],
+    "obliques":    [("front", "obliques")],
+    "glutes":      [("back", "glutes")],
+    "quads":       [("front", "quads")],
+    "hamstrings":  [("back", "hamstrings")],
+    "adductors":   [("front", "adductors")],
+    "calves":      [("front", "calves"), ("back", "calves")],
+}
+
+# Backwards-compatible views of the registry (v0.1 API).
 MUSCLES: dict[str, dict] = {
-    "chest":       {"name": "Chest",       "shapes": [("front", "chest")]},
-    "front_delts": {"name": "Front Delts", "shapes": [("front", "front_delts")]},
-    "side_delts":  {"name": "Side Delts",  "shapes": [("front", "front_delts"), ("back", "rear_delts")]},
-    "rear_delts":  {"name": "Rear Delts",  "shapes": [("back", "rear_delts")]},
-    "traps":       {"name": "Traps",       "shapes": [("front", "traps"), ("back", "traps")]},
-    "rhomboids":   {"name": "Upper Back",  "shapes": [("back", "rhomboids")]},
-    "lats":        {"name": "Lats",        "shapes": [("back", "lats")]},
-    "lower_back":  {"name": "Lower Back",  "shapes": [("back", "lower_back")]},
-    "biceps":      {"name": "Biceps",      "shapes": [("front", "biceps")]},
-    "triceps":     {"name": "Triceps",     "shapes": [("back", "triceps")]},
-    "forearms":    {"name": "Forearms",    "shapes": [("front", "forearms"), ("back", "forearms")]},
-    "abs":         {"name": "Abs",         "shapes": [("front", "abs")]},
-    "obliques":    {"name": "Obliques",    "shapes": [("front", "obliques")]},
-    "glutes":      {"name": "Glutes",      "shapes": [("back", "glutes")]},
-    "quads":       {"name": "Quads",       "shapes": [("front", "quads")]},
-    "hamstrings":  {"name": "Hamstrings",  "shapes": [("back", "hamstrings")]},
-    "adductors":   {"name": "Adductors",   "shapes": [("front", "adductors")]},
-    "calves":      {"name": "Calves",      "shapes": [("front", "calves"), ("back", "calves")]},
+    gid: {"name": registry().display_name(gid), "shapes": GROUP_SHAPES[gid]} for gid in registry().groups
 }
-
-ALIASES: dict[str, list[str]] = {
-    "pecs": ["chest"],
-    "delts": ["front_delts", "side_delts", "rear_delts"],
-    "shoulders": ["front_delts", "side_delts", "rear_delts"],
-    "upper_back": ["rhomboids"],
-    "back": ["lats", "rhomboids", "traps"],
-    "core": ["abs", "obliques"],
-    "erectors": ["lower_back"],
-    "hams": ["hamstrings"],
-    "quadriceps": ["quads"],
-    "glute": ["glutes"],
-    "calf": ["calves"],
-}
-
-
-def normalize(name: str) -> str:
-    return re.sub(r"[\s\-]+", "_", name.strip().lower())
+ALIASES: dict[str, list[str]] = dict(registry().aliases)
 
 
 def resolve_muscles(names: Iterable[str]) -> list[str]:
     """Expand aliases, validate, and de-duplicate (order preserved)."""
-    out: list[str] = []
-    for raw in names:
-        key = normalize(raw)
-        expanded = ALIASES.get(key, [key])
-        for m in expanded:
-            if m not in MUSCLES:
-                known = ", ".join(sorted(MUSCLES) + sorted(ALIASES))
-                raise ValueError(f"Unknown muscle '{raw}'. Known: {known}")
-            if m not in out:
-                out.append(m)
-    return out
+    return registry().resolve(names)
 
 
 def display_name(muscle: str) -> str:
-    return MUSCLES[muscle]["name"]
+    return registry().display_name(muscle)
 
 
 def _levels(view: str, primary: Iterable[str], secondary: Iterable[str]) -> dict[str, str]:
     levels: dict[str, str] = {}
     for level, muscles in (("secondary", secondary), ("primary", primary)):  # primary wins
         for m in muscles:
-            for v, sid in MUSCLES[m]["shapes"]:
+            for v, sid in GROUP_SHAPES[m]:
                 if v == view:
                     levels[sid] = level
     return levels

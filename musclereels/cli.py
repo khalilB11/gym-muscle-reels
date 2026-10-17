@@ -1,4 +1,7 @@
-"""Command line interface: `musclereels <command>`."""
+"""Command line interface: `musclereels <command>`.
+
+Exit codes: 0 ok, 1 render/ffmpeg failure, 2 usage or validation error.
+"""
 from __future__ import annotations
 
 import argparse
@@ -12,37 +15,54 @@ import numpy as np
 from . import __version__
 from .bodymap import ALIASES, MUSCLES, display_name
 from .exercises import ExerciseDB
+from .layout import LayoutError, builtin_presets, resolve_preset
 from .overlay import POSITIONS
-from .project import FITS, Job, load_job, make_segment, parse_time
-from .render import render, render_still
+from .project import FITS, Project, ProjectError, load_project, make_segment, parse_time
+from .render import RenderCancelled, RenderError, render, render_still
 from .theme import Theme
+from .video import VideoError
 
 
-def _quick_job(args) -> Job:
+class UsageError(Exception):
+    pass
+
+
+def _layout_from_args(args, default=None):
+    if getattr(args, "layout_preset", None):
+        return resolve_preset(args.layout_preset)
+    if getattr(args, "position", None):
+        return builtin_presets()[f"card-{args.position}"]
+    return default
+
+
+def _quick_project(args) -> Project:
     db = ExerciseDB(args.exercises_file or [])
     spec = {"exercise": args.exercise, "start": args.start, "end": args.end, "subtitle": args.subtitle}
     if args.title:
         spec["title"] = args.title
     seg = make_segment(spec, db)
     inp = Path(args.input)
-    job = Job(input=inp, output=Path(args.output or inp.with_name(inp.stem + "_reel.mp4")),
-              segments=[seg], position=args.position or "left", fit=args.fit or "auto",
-              trim=args.trim, card_scale=args.scale or 1.0)
-    job.validate()
-    return job
+    project = Project(input=inp, output=Path(args.output) if args.output else None, segments=[seg],
+                      layout=_layout_from_args(args, builtin_presets()["card-left"]),
+                      fit=args.fit or "auto", trim_to_segments=args.trim, card_scale=args.scale or 1.0,
+                      exercises_file=[Path(f) for f in args.exercises_file or []])
+    project.validate()
+    return project
 
 
 def cmd_render(args) -> None:
     if str(args.input).lower().endswith((".yaml", ".yml")):
-        job = load_job(args.input, {"output": args.output, "position": args.position,
-                                    "fit": args.fit, "card_scale": args.scale,
-                                    "trim": True if args.trim else None})
+        project = load_project(args.input, {"fit": args.fit, "card_scale": args.scale,
+                                            "trim": True if args.trim else None})
+        if args.output:
+            project.output = Path(args.output)
+        project.layout = _layout_from_args(args, project.layout)
     else:
         if not args.exercise:
-            sys.exit("Pass an exercise with -e (e.g. -e squat), or give a .yaml edit script.")
-        job = _quick_job(args)
-    print(f"→ {job.input.name}: {len(job.segments)} segment(s)", file=sys.stderr)
-    out = render(job)
+            raise UsageError("Pass an exercise with -e (e.g. -e squat), or give a .yaml edit script.")
+        project = _quick_project(args)
+    print(f"→ {Path(project.input).name}: {len(project.segments)} segment(s)", file=sys.stderr)
+    out = render(project, verbose=True)
     print(f"✓ Saved {out}")
 
 
@@ -52,9 +72,9 @@ def cmd_preview(args) -> None:
     if args.title:
         spec["title"] = args.title
     seg = make_segment(spec, db)
-    job = Job(input=Path("."), output=Path(args.output), segments=[seg],
-              position=args.position or "left", fit=args.fit or "auto",
-              card_scale=args.scale or 1.0, theme=Theme())
+    project = Project(input=Path("."), output=Path(args.output), segments=[seg],
+                      layout=_layout_from_args(args, builtin_presets()["card-left"]),
+                      fit=args.fit or "auto", card_scale=args.scale or 1.0, theme=Theme())
     frame = None
     if args.video:
         cap = cv2.VideoCapture(args.video)
@@ -62,20 +82,25 @@ def cmd_preview(args) -> None:
         ok, frame = cap.read()
         cap.release()
         if not ok:
-            sys.exit(f"Could not read a frame from {args.video} at {args.at}")
-    img = render_still(job, seg, frame)
+            raise UsageError(f"Could not read a frame from {args.video} at {args.at}")
+    img = render_still(project, seg, frame)
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(args.output, img)
     print(f"✓ Saved {args.output}")
 
 
 def cmd_list(args) -> None:
-    db = ExerciseDB(args.exercises_file or [])
+    if args.presets:
+        for name, lay in builtin_presets().items():
+            desc = f"card, {lay.card_position}" if lay.mode == "card" else f"free, card: {lay.card}"
+            print(f"  {name:<18} {desc}")
+        return
     if args.muscles:
         for k, v in MUSCLES.items():
             print(f"  {k:<12} {v['name']}")
         print("\nAliases: " + ", ".join(f"{a} → {'+'.join(m)}" for a, m in ALIASES.items()))
         return
+    db = ExerciseDB(args.exercises_file or [])
     for ex in db.all():
         p = ", ".join(display_name(m) for m in ex.primary)
         s = ", ".join(display_name(m) for m in ex.secondary)
@@ -99,11 +124,19 @@ def cmd_demo(args) -> None:
         writer.write(img)
     writer.release()
     db = ExerciseDB()
-    job = Job(input=clip, output=out_dir / "demo_reel.mp4",
-              segments=[make_segment({"exercise": "bench_press", "start": 0, "end": 4, "subtitle": "4 x 8"}, db),
-                        make_segment({"exercise": "squat", "start": 4, "end": 8, "subtitle": "5 x 5"}, db)])
-    job.validate()
-    print(f"✓ Saved {render(job)}")
+    project = Project(input=clip, output=out_dir / "demo_reel.mp4",
+                      segments=[make_segment({"exercise": "bench_press", "start": 0, "end": 4, "subtitle": "4 x 8"}, db),
+                                make_segment({"exercise": "squat", "start": 4, "end": 8, "subtitle": "5 x 5"}, db)])
+    project.validate()
+    print(f"✓ Saved {render(project, verbose=True)}")
+
+
+def cmd_app(args) -> None:
+    try:
+        from .app import launch
+    except ImportError:
+        raise UsageError('The editor app needs extra packages: pip install "musclereels[app]"') from None
+    sys.exit(launch(args.path))
 
 
 def main(argv=None) -> None:
@@ -113,9 +146,10 @@ def main(argv=None) -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def common(sp):
-        sp.add_argument("--position", choices=POSITIONS, help="where the body-map card sits (default: left)")
+        sp.add_argument("--position", choices=POSITIONS, help="card position (same as --layout-preset card-<pos>)")
+        sp.add_argument("--layout-preset", help="built-in preset name (see `list --presets`) or a preset .yaml")
         sp.add_argument("--fit", choices=FITS, help="cover = crop to fill, blur = letterbox on blurred bg (default: auto)")
-        sp.add_argument("--scale", type=float, help="body-map card size multiplier, e.g. 0.8")
+        sp.add_argument("--scale", type=float, help="card size multiplier for card layouts, e.g. 0.8")
         sp.add_argument("--exercises-file", action="append", help="extra YAML with custom exercises")
 
     r = sub.add_parser("render", help="render a reel from a clip (+ -e EXERCISE) or a .yaml edit script")
@@ -140,8 +174,9 @@ def main(argv=None) -> None:
     common(pv)
     pv.set_defaults(func=cmd_preview)
 
-    ls = sub.add_parser("list", help="list exercises (or --muscles)")
+    ls = sub.add_parser("list", help="list exercises (or --muscles / --presets)")
     ls.add_argument("--muscles", action="store_true")
+    ls.add_argument("--presets", action="store_true")
     ls.add_argument("--exercises-file", action="append")
     ls.set_defaults(func=cmd_list)
 
@@ -149,11 +184,19 @@ def main(argv=None) -> None:
     dm.add_argument("--output-dir", default="demo")
     dm.set_defaults(func=cmd_demo)
 
+    ap = sub.add_parser("app", help="open the editor app (needs: pip install \"musclereels[app]\")")
+    ap.add_argument("path", nargs="?", help="project .yaml or video to open")
+    ap.set_defaults(func=cmd_app)
+
     args = p.parse_args(argv)
     try:
         args.func(args)
-    except (KeyError, ValueError, FileNotFoundError) as e:
-        sys.exit(f"error: {e.args[0] if e.args else e}")
+    except (UsageError, ProjectError, LayoutError, KeyError, ValueError, FileNotFoundError, VideoError) as e:
+        print(f"error: {e.args[0] if e.args else e}", file=sys.stderr)
+        sys.exit(2)
+    except (RenderError, RenderCancelled) as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
