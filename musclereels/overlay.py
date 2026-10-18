@@ -13,7 +13,9 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
-from .bodymap import H as FIG_H, W as FIG_W, display_name, muscle_region, render_crop, render_figure, resolve_muscles
+from .activation import activate, simple_groups_of
+from .bodymap import H as FIG_H, W as FIG_W, display_name, muscle_region, render_crop, render_figure
+from .muscles import registry
 from .layout import (CANVAS_H, CANVAS_W, ELEMENTS, SAFE_BOTTOM, SAFE_LEFT, SAFE_RIGHT, SAFE_TOP,
                      ElementPlacement, Layout, builtin_presets, effective_layout, snap_to_safe_zone)
 from .theme import Theme, load_font
@@ -86,11 +88,32 @@ def _title_sprite(title: str, subtitle: str | None, theme: Theme, max_w: int) ->
 
 # --- legend chips ------------------------------------------------------------------
 
+def _merge_complete_groups(muscles: Sequence[str]) -> list[str]:
+    """Replace a full set of a group's main muscles (e.g. all three triceps heads) by the group."""
+    reg = registry()
+    present = set(muscles)
+    out: list[str] = []
+    for m in muscles:
+        if reg.is_group(m):
+            item = m
+        else:
+            g = reg.group_of(m)
+            members = reg.members(g, default_only=True)
+            item = g if len(members) > 1 and set(members) <= present else m
+        if item not in out:
+            out.append(item)
+    return out
+
+
 def _chips(primary: Sequence[str], secondary: Sequence[str], theme: Theme, max_w: int, scale: float):
     """Lay out legend chips; returns (draw_fn, height, used_width)."""
     font = load_font(round(26 * scale), True, theme.font)
     probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     ch, pad_x, dot, gap = round(44 * scale), round(14 * scale), round(14 * scale), round(10 * scale)
+    primary, secondary = _merge_complete_groups(primary), _merge_complete_groups(secondary)
+    if len(primary) + len(secondary) > 8:      # many detailed muscles: one chip per group keeps it readable
+        primary = simple_groups_of(primary)
+        secondary = [g for g in simple_groups_of(secondary) if g not in primary]
     items = [(m, theme.primary) for m in primary] + [(m, theme.secondary) for m in secondary]
     placed, x, y, used = [], 0, 0, 0
     for m, color in items:
@@ -139,10 +162,11 @@ def _card_x(x_pos: str, w: int) -> int:
 
 
 def _card_sprite(primary, secondary, theme: Theme, scale: float, x_pos: str, y: int,
-                 views: Sequence[str] = ("front", "back"), show_legend: bool = True, labels: bool = True) -> Sprite:
+                 views: Sequence[str] = ("front", "back"), show_legend: bool = True, labels: bool = True,
+                 level: str = "simple") -> Sprite:
     g = _card_geometry(len(views), show_legend, primary, secondary, theme, scale, labels)
     fig_w, pad, label_h, w, h = g["fig_w"], g["pad"], g["label_h"], g["w"], g["h"]
-    figs = {(view, lit): render_figure(view, primary, secondary, fig_w, theme, lit=lit)
+    figs = {(view, lit): render_figure(view, primary, secondary, fig_w, theme, lit=lit, level=level)
             for view in views for lit in (False, True)}
     label_font = load_font(round(20 * scale), True, theme.font)
 
@@ -168,7 +192,8 @@ def _card_sprite(primary, secondary, theme: Theme, scale: float, x_pos: str, y: 
     return Sprite(_card_x(x_pos, w), y, base, lit - base, "card")
 
 
-def _card_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layout, scale: float) -> list[Sprite]:
+def _card_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layout, scale: float,
+                       level: str = "simple") -> list[Sprite]:
     sprites: list[Sprite] = []
     card_y = SAFE_TOP
     if layout.title.visible:
@@ -181,7 +206,7 @@ def _card_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layou
     # Shrink the card until it fits above Instagram's caption area.
     while True:
         card = _card_sprite(primary, secondary, theme, scale, layout.card_position, card_y,
-                            views, layout.legend.visible, layout.labels)
+                            views, layout.legend.visible, layout.labels, level)
         if card_y + card.size[1] <= CANVAS_H - SAFE_BOTTOM or scale <= 0.5:
             break
         scale -= 0.05
@@ -209,7 +234,7 @@ def materialize_card(project, segment, layout: Layout, style: str = "grouped") -
     style "grouped" keeps one panel around everything; "per_element"/"none" give each element its own
     panel (or none), sized so the figures keep their size and place.
     """
-    primary, secondary = segment_muscles(segment)
+    primary, secondary = segment_muscles(segment, project.detail_level)
     scale, card_y = _card_fit_scale(segment.title, segment.subtitle, primary, secondary, project.theme,
                                     layout, project.card_scale)
     views = [v for v in ("front", "back") if layout.placement(v).visible]
@@ -249,7 +274,7 @@ def _figure_metrics(width: int, style: str, labels: bool) -> dict:
 
 
 def _figure_element(view, primary, secondary, theme: Theme, width: int, style: str, labels: bool,
-                    x: int, y: int) -> Sprite:
+                    x: int, y: int, level: str = "simple") -> Sprite:
     m = _figure_metrics(width, style, labels)
     per, s, pad, fig_w, label_h = m["per"], m["s"], m["pad"], m["fig_w"], m["label_h"]
     w, h = m["w"], m["h"]
@@ -263,7 +288,8 @@ def _figure_element(view, primary, secondary, theme: Theme, width: int, style: s
         if labels:
             lw, lh, ly = _text_size(d, view.upper(), label_font)
             d.text((pad + (fig_w - lw) // 2, pad - ly), view.upper(), font=label_font, fill=theme.muted)
-        img.alpha_composite(render_figure(view, primary, secondary, fig_w, theme, lit=lit), (pad, pad + label_h))
+        img.alpha_composite(render_figure(view, primary, secondary, fig_w, theme, lit=lit, level=level),
+                            (pad, pad + label_h))
         return img
 
     base, lit = _to_bgra(draw(False)), _to_bgra(draw(True))
@@ -289,20 +315,40 @@ def _legend_element(primary, secondary, theme: Theme, width: int, style: str, x:
 
 @dataclass(frozen=True)
 class TileRegion:
-    muscle: str
+    muscle: str                                  # id the tile is named after (muscle or group)
     level: str                                   # primary | secondary
     view: str
     box: tuple[float, float, float, float]       # square crop, design units
+    lit: tuple[str, ...] = ()                    # ids lit inside the tile
+    detail: str = "simple"                       # art used for the close-up
 
 
 def tile_regions(project, segment) -> list[TileRegion]:
-    """One close-up per worked muscle: main muscles first, then assisting ones."""
-    primary, secondary = segment_muscles(segment)
+    """One close-up per worked muscle: main muscles first, then assisting ones.
+
+    At Detailed level every main muscle gets its own box; assisting muscles are combined per group
+    (one "Traps" box rather than three), unless that group also has a main muscle."""
+    detail = getattr(project, "detail_level", "simple")
+    primary, secondary = segment_muscles(segment, detail)
+    items: list[tuple[str, str, tuple[str, ...]]] = [(m, "primary", (m,)) for m in primary]
+    if detail == "detailed":
+        reg = registry()
+        prim_groups = {reg.group_of(m) for m in primary}
+        by_group: dict[str, list[str]] = {}
+        for m in secondary:
+            g = reg.group_of(m)
+            if g in prim_groups:
+                items.append((m, "secondary", (m,)))
+            else:
+                by_group.setdefault(g, []).append(m)
+        for g, ms in by_group.items():
+            items.append((g if len(ms) > 1 else ms[0], "secondary", tuple(ms)))
+    else:
+        items += [(m, "secondary", (m,)) for m in secondary]
     out = []
-    for level, muscles in (("primary", primary), ("secondary", secondary)):
-        for m in muscles:
-            view, box = muscle_region(m)
-            out.append(TileRegion(m, level, view, box))
+    for name, lvl, lit in items:
+        view, box = muscle_region(list(lit), level=detail)
+        out.append(TileRegion(name, lvl, view, box, lit, detail))
     return out
 
 
@@ -337,8 +383,9 @@ def _tiles_element(project, segment, layout: Layout, x: int, y: int) -> Sprite |
             d = ImageDraw.Draw(tile)
             if layout.card != "none":
                 d.rounded_rectangle((0, 0, t - 1, t + name_h - 1), radius=radius, fill=theme.card)
-            prim, sec = ([r.muscle], []) if r.level == "primary" else ([], [r.muscle])
-            crop = render_crop(r.view, prim, sec, r.box, t - 2 * pad, theme, lit=lit)
+            lit_ids = list(r.lit or (r.muscle,))
+            prim, sec = (lit_ids, []) if r.level == "primary" else ([], lit_ids)
+            crop = render_crop(r.view, prim, sec, r.box, t - 2 * pad, theme, lit=lit, level=r.detail)
             mask = Image.new("L", crop.size, 0)
             ImageDraw.Draw(mask).rounded_rectangle((0, 0, crop.width - 1, crop.height - 1),
                                                    radius=max(2, radius - pad), fill=255)
@@ -349,11 +396,14 @@ def _tiles_element(project, segment, layout: Layout, x: int, y: int) -> Sprite |
                                 width=max(2, round(t * 0.018)))
             if name_h:
                 label = display_name(r.muscle)
-                lw, lh, ly = _text_size(d, label, font)
-                if lw > t - 2 * pad:
-                    label = label.split()[0]
-                    lw, lh, ly = _text_size(d, label, font)
-                d.text(((t - lw) // 2, t + (name_h - lh) // 2 - ly - pad // 2), label, font=font, fill=theme.text)
+                f = font
+                lw, lh, ly = _text_size(d, label, f)
+                size = f.size
+                while lw > t - 2 * pad and size > 11:      # shrink long names (e.g. "Outer Hamstring") to fit
+                    size -= 1
+                    f = load_font(size, True, theme.font)
+                    lw, lh, ly = _text_size(d, label, f)
+                d.text(((t - lw) // 2, t + (name_h - lh) // 2 - ly - pad // 2), label, font=f, fill=theme.text)
             img.alpha_composite(tile, (tx, ty))
         return img
 
@@ -383,7 +433,7 @@ def _free_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layou
         p = layout.placement(v)
         if p.visible:
             body.append(_figure_element(v, primary, secondary, theme, max(40, p.width), layout.card,
-                                        layout.labels, p.x, p.y))
+                                        layout.labels, p.x, p.y, project.detail_level if project else "simple"))
     if layout.legend.visible:
         p = layout.legend
         leg = _legend_element(primary, secondary, theme, max(60, p.width), layout.card, p.x, p.y)
@@ -411,7 +461,7 @@ def element_boxes(project, segment, layout: Layout | None = None) -> dict[str, t
     layout = layout or effective_layout(project, segment)
     if layout.mode == "card":
         layout = materialize_card(project, segment, layout, "per_element")
-    primary, secondary = segment_muscles(segment)
+    primary, secondary = segment_muscles(segment, project.detail_level)
     boxes: dict[str, tuple[int, int, int, int]] = {}
     if layout.title.visible:
         p = layout.title
@@ -443,18 +493,9 @@ def element_boxes(project, segment, layout: Layout | None = None) -> dict[str, t
 
 # --- public API --------------------------------------------------------------------
 
-def segment_muscles(segment) -> tuple[list[str], list[str]]:
-    """Primary/secondary muscles for a segment after its click overrides."""
-    primary, secondary = list(segment.primary), list(segment.secondary)
-    for ref, state in (getattr(segment, "overrides", None) or {}).items():
-        for m in resolve_muscles([ref]):
-            primary = [x for x in primary if x != m]
-            secondary = [x for x in secondary if x != m]
-            if state == "primary":
-                primary.append(m)
-            elif state == "secondary":
-                secondary.append(m)
-    return primary, secondary
+def segment_muscles(segment, level: str = "simple") -> tuple[list[str], list[str]]:
+    """Primary/secondary muscles lit for a segment at `level`, after its click overrides."""
+    return activate(segment.primary, segment.secondary, getattr(segment, "overrides", None) or {}, level)
 
 
 def _scale_sprite(sp: Sprite, s: float) -> Sprite:
@@ -468,10 +509,10 @@ def _scale_sprite(sp: Sprite, s: float) -> Sprite:
 def build_sprites(project, segment, layout: Layout | None = None, scale: float = 1.0) -> list[Sprite]:
     """All overlay sprites for one segment, in draw order. scale < 1 is for the app preview."""
     layout = layout or effective_layout(project, segment)
-    primary, secondary = segment_muscles(segment)
+    primary, secondary = segment_muscles(segment, project.detail_level)
     if layout.mode == "card":
         sprites = _card_mode_sprites(segment.title, segment.subtitle, primary, secondary, project.theme,
-                                     layout, project.card_scale)
+                                     layout, project.card_scale, project.detail_level)
     else:
         sprites = _free_mode_sprites(segment.title, segment.subtitle, primary, secondary, project.theme, layout,
                                      project, segment)
@@ -486,7 +527,8 @@ def build_overlay(title: str, subtitle: str | None, primary: Sequence[str], seco
     if position not in POSITIONS:
         raise ValueError(f"position must be one of {POSITIONS}")
     layout = builtin_presets()[f"card-{position}"]
-    return _card_mode_sprites(title, subtitle, list(primary), list(secondary), theme, layout, scale)
+    primary, secondary = activate(primary, secondary, {}, "simple")
+    return _card_mode_sprites(title, subtitle, primary, secondary, theme, layout, scale)
 
 
 def composite(frame: np.ndarray, sprites: Sequence[Sprite], glow: float, opacity: float) -> None:
@@ -514,3 +556,47 @@ def composite(frame: np.ndarray, sprites: Sequence[Sprite], glow: float, opacity
 
 __all__ = ["Sprite", "TileRegion", "tile_regions", "element_boxes", "build_sprites", "build_overlay", "composite", "materialize_card", "segment_muscles",
            "CANVAS_W", "CANVAS_H", "SAFE_TOP", "SAFE_BOTTOM", "SAFE_LEFT", "SAFE_RIGHT", "POSITIONS", "ELEMENTS"]
+
+
+def figure_frame(project, segment, view: str):
+    """Where a figure's body art sits on the canvas: (x, y, scale) so that a design point (dx, dy)
+    is at canvas (x + dx * scale, y + dy * scale). None if that figure isn't shown."""
+    layout = effective_layout(project, segment)
+    if layout.mode == "card":
+        layout = materialize_card(project, segment, layout, "per_element")
+    if not layout.placement(view).visible:
+        return None
+    box = element_boxes(project, segment, layout).get(view)
+    if box is None:
+        return None
+    m = _figure_metrics(max(40, layout.placement(view).width), layout.card, layout.labels)
+    return box[0] + m["pad"], box[1] + m["pad"] + m["label_h"], m["fig_w"] / FIG_W
+
+
+def place_tiles(project, segment, layout: Layout) -> ElementPlacement:
+    """A spot for the muscle boxes that doesn't cover the other visible elements:
+    below them if they fit, else to their right, else the free band with the most room."""
+    from .layout import SAFE_RECT
+    sx0, sy0, sx1, sy1 = SAFE_RECT
+    n = max(1, len(tile_regions(project, segment)))
+    boxes = [b for name, b in element_boxes(project, segment, layout).items() if name != "tiles"]
+    title = element_boxes(project, segment, layout).get("title")
+    others = [b for b in boxes if b != title]
+    top = (title[3] + 24) if title else sy0
+
+    def fits(x, y, width):
+        m = _tiles_metrics(n, width, layout.tile_names)
+        return y + m["h"] <= sy1 and x + m["w"] <= sx1 and m["tile"] >= 110
+
+    if not others:
+        return ElementPlacement(True, sx0, top, sx1 - sx0)
+    below = max(b[3] for b in others) + 24
+    if fits(sx0, below, sx1 - sx0):
+        return ElementPlacement(True, sx0, below, sx1 - sx0)
+    right = max(b[2] for b in others) + 24
+    if fits(right, top, sx1 - right):
+        return ElementPlacement(True, right, top, sx1 - right)
+    left = min(b[0] for b in others) - 24
+    if fits(sx0, top, left - sx0):
+        return ElementPlacement(True, sx0, top, left - sx0)
+    return ElementPlacement(True, sx0, below, sx1 - sx0)       # snapping keeps it on screen

@@ -24,10 +24,23 @@ def test_preset_shows_boxes_instead_of_figures():
 
 
 def test_one_tile_per_muscle_main_first():
+    from musclereels.overlay import segment_muscles
     proj, seg = project_for("deadlift")
+    p, s = segment_muscles(seg, "simple")
     regions = tile_regions(proj, seg)
-    assert [r.muscle for r in regions] == seg.primary + seg.secondary
-    assert [r.level for r in regions] == ["primary"] * len(seg.primary) + ["secondary"] * len(seg.secondary)
+    assert [r.muscle for r in regions] == p + s
+    assert [r.level for r in regions] == ["primary"] * len(p) + ["secondary"] * len(s)
+
+
+def test_detailed_tiles_split_main_muscles_and_group_helpers():
+    proj, seg = project_for("bulgarian_split_squat")
+    proj.detail_level = "detailed"
+    regions = tile_regions(proj, seg)
+    names = [r.muscle for r in regions]
+    assert names[:4] == ["rectus_femoris", "vastus_lateralis", "vastus_medialis", "gluteus_maximus"]
+    assert "gluteus_medius" in names                 # same group as a main muscle: own box
+    assert "hamstrings" in names                     # two assisting hamstring muscles: one group box
+    assert all(r.detail == "detailed" for r in regions)
 
 
 @pytest.mark.parametrize("ex", ["deadlift", "bench_press", "lateral_raise", "calf_raise", "pull_up"])

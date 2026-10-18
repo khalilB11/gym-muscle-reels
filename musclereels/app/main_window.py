@@ -7,16 +7,20 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Callable, Optional
 
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QPointF, QSettings, Qt
 from PySide6.QtGui import QAction, QKeySequence, QUndoCommand, QUndoStack
-from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
+                               QToolTip,
                                QProgressDialog, QPushButton, QSlider, QSplitter, QStyle, QToolBar, QVBoxLayout,
                                QWidget)
 
 from .. import __version__
 from ..exercises import ExerciseDB
 from ..layout import SAFE_LEFT, SAFE_RECT, SAFE_TOP, snap_to_safe_zone
-from ..overlay import materialize_card
+from ..bodymap import DETAILED, SHAPES, GROUP_SHAPES, hit_test
+from ..muscles import registry
+from ..overlay import figure_frame, materialize_card, place_tiles, segment_muscles
 from ..project import Project, ProjectError, Segment, load_project, make_segment, save_project
 from ..video import VideoError, VideoSource
 from .canvas import Canvas
@@ -111,6 +115,8 @@ class MainWindow(QMainWindow):
         hs.started.connect(self._drag_started)
         hs.changing.connect(lambda n, dx, dy, dw: self._drag_apply(n, dx, dy, dw, final=False))
         hs.finished.connect(lambda n, dx, dy, dw: self._drag_apply(n, dx, dy, dw, final=True))
+        hs.clicked.connect(lambda n, pos: self.click_muscle(n, pos))
+        hs.hovered.connect(self._hover_muscle)
         self._update_ui()
 
     # -- construction ------------------------------------------------------------
@@ -139,6 +145,15 @@ class MainWindow(QMainWindow):
         self.act_redo.setShortcut(QKeySequence.Redo)
         tb.addAction(self.act_undo)
         tb.addAction(self.act_redo)
+        tb.addSeparator()
+        tb.addWidget(QLabel(" Detail "))
+        self.detail_combo = QComboBox()
+        self.detail_combo.addItem("Simple (18 groups)", "simple")
+        self.detail_combo.addItem("Detailed (40 muscles)", "detailed")
+        self.detail_combo.setToolTip("Detailed shows individual muscles, e.g. upper chest or side delt")
+        self.detail_combo.currentIndexChanged.connect(
+            lambda i: self.set_detail_level(self.detail_combo.itemData(i)))
+        tb.addWidget(self.detail_combo)
         tb.addSeparator()
         self.act_safe = act("Safe zones", self.canvas.set_safe_zones_visible)
         self.act_safe.setCheckable(True)
@@ -206,6 +221,11 @@ class MainWindow(QMainWindow):
         self.exercise_panel.setEnabled(has)
         self.transport.setEnabled(has)
         self.inspector.set_overlay(self.project.layout if has else None, self.project.theme if has else None)
+        self.detail_combo.setEnabled(has)
+        if has:
+            self.detail_combo.blockSignals(True)
+            self.detail_combo.setCurrentIndex(self.detail_combo.findData(self.project.detail_level))
+            self.detail_combo.blockSignals(False)
         seg = self.current_segment()
         name = ""
         if seg is not None and seg.exercise:
@@ -213,7 +233,8 @@ class MainWindow(QMainWindow):
                 name = self.db.get(seg.exercise).name
             except KeyError:
                 name = seg.exercise
-        self.inspector.set_segment(seg, name)
+        muscles = segment_muscles(seg, self.project.detail_level) if seg is not None else None
+        self.inspector.set_segment(seg, name, muscles)
 
     # -- open --------------------------------------------------------------------
     def _open_dialog(self) -> None:
@@ -347,15 +368,14 @@ class MainWindow(QMainWindow):
             if key == "style":
                 lay = free_layout()
                 figures, tiles = value in ("figures", "both"), value in ("tiles", "both")
-                tp = lay.tiles
-                if tiles and not tp.visible:             # first time: put the boxes where the figures were
-                    tp = replace(tp, x=SAFE_LEFT, y=max(SAFE_TOP + 200, min(lay.front.y, lay.back.y)),
-                                 width=SAFE_RECT[2] - SAFE_LEFT)
-                changes = dict(front=replace(lay.front, visible=figures), back=replace(lay.back, visible=figures),
-                               tiles=replace(tp, visible=tiles))
-                if value == "tiles":
+                changes = dict(front=replace(lay.front, visible=figures), back=replace(lay.back, visible=figures))
+                if tiles:
                     changes["legend"] = replace(lay.legend, visible=False)   # names are inside the boxes
-                self.project.layout = replace(lay, **changes)
+                lay = replace(lay, **changes)
+                tp = lay.tiles
+                if tiles and not tp.visible and seg is not None:   # first time: find free space for the boxes
+                    tp = place_tiles(self.project, seg, lay)
+                self.project.layout = replace(lay, tiles=replace(tp, visible=tiles))
             elif key == "show_legend":
                 figures = lay.front.visible or lay.back.visible
                 self.project.layout = replace(lay, tile_names=bool(value),
@@ -379,6 +399,77 @@ class MainWindow(QMainWindow):
         text = {"opacity": "Change background opacity", "background": "Change background",
                 "style": "Change style"}.get(key, "Show/hide")
         self._edit(text, fn, MERGE_OPACITY if key == "opacity" else -1)
+
+    # -- detail level and muscle picking ---------------------------------------------
+    def set_detail_level(self, level: str) -> None:
+        if not self.project or self.project.detail_level == level:
+            return
+        self._edit("Change detail", lambda: setattr(self.project, "detail_level", level))
+
+    def _to_design(self, view: str, pos: QPointF):
+        seg = self.current_segment()
+        frame = figure_frame(self.project, seg, view) if (self.project and seg) else None
+        if frame is None:
+            return None
+        fx, fy, k = frame
+        return (pos.x() - fx) / k, (pos.y() - fy) / k
+
+    def muscle_at(self, view: str, pos: QPointF):
+        if view not in ("front", "back") or not self.project:
+            return None
+        d = self._to_design(view, pos)
+        return hit_test(view, d[0], d[1], self.project.detail_level) if d else None
+
+    def muscle_scene_pos(self, view: str, muscle: str):
+        """Canvas position of a muscle's centre on a figure (used by tests and tooling)."""
+        seg = self.current_segment()
+        frame = figure_frame(self.project, seg, view) if seg else None
+        if frame is None:
+            return None
+        if self.project.detail_level == "detailed":
+            polys = DETAILED[view].get(muscle)
+        else:
+            polys = [p for v, sid in GROUP_SHAPES.get(muscle, []) if v == view for p in SHAPES[view][sid]]
+        if not polys:
+            return None
+        poly = polys[0]
+        cx = sum(x for x, _ in poly) / len(poly)
+        cy = sum(y for _, y in poly) / len(poly)
+        fx, fy, k = frame
+        return QPointF(fx + cx * k, fy + cy * k)
+
+    def muscle_tooltip_at(self, view: str, pos: QPointF) -> str:
+        m = self.muscle_at(view, pos)
+        if not m:
+            return ""
+        mus = registry().get(m)
+        return mus.full_name if mus.full_name != mus.short_name else mus.short_name
+
+    def _hover_muscle(self, view: str, pos: QPointF) -> None:
+        text = self.muscle_tooltip_at(view, pos)
+        if text:
+            QToolTip.showText(QCursor.pos(), text + "\nClick: main → assisting → off")
+        else:
+            QToolTip.hideText()
+
+    def click_muscle(self, view: str, pos: QPointF) -> None:
+        """Cycle the clicked muscle: off → main (primary) → assisting (secondary) → off."""
+        m = self.muscle_at(view, pos)
+        seg = self.current_segment()
+        if not m or seg is None:
+            return
+        prim, sec = segment_muscles(seg, self.project.detail_level)
+        state = "secondary" if m in prim else ("off" if m in sec else "primary")
+        if self.project.detail_level == "simple":
+            members = registry().expand(m)
+            lit = set(segment_muscles(seg, "detailed")[0]) | set(segment_muscles(seg, "detailed")[1])
+            if not lit & set(members):
+                state = "primary"
+
+        def fn():
+            s = self.project.segments[self.selected]
+            s.overrides = {**s.overrides, m: state}
+        self._edit(f"Set {registry().display_name(m)} {state}", fn)
 
     # -- moving / resizing elements on the canvas ----------------------------------
     def _on_frame(self, t: float, image, boxes: dict) -> None:

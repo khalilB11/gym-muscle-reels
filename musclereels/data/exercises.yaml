@@ -1,9 +1,12 @@
 # Exercise -> muscles it works.
 #   primary:   main movers (shown in red)
 #   secondary: assisting / stabilising muscles (shown in orange)
-# Muscle ids: chest, front_delts, side_delts, rear_delts, traps, rhomboids, lats,
+# Muscles can be Simple groups (e.g. chest) or Detailed muscles (e.g. upper_chest); a group lights all
+# its main parts at Detailed level. Specific muscles are used only where the emphasis is well
+# established (comment says why); everything else stays at group level (Constitution III).
+# Group ids: chest, front_delts, side_delts, rear_delts, traps, rhomboids, lats,
 #   lower_back, biceps, triceps, forearms, abs, obliques, glutes, quads,
-#   hamstrings, adductors, calves
+#   hamstrings, adductors, calves   (detailed ids: `musclereels list --muscles --detailed`)
 # Aliases also work: shoulders, delts, back, upper_back, core, pecs, hams ...
 
 # --- Chest ---
@@ -12,10 +15,10 @@ bench_press:
   aliases: [bench, flat bench, barbell bench press]
   primary: [chest]
   secondary: [front_delts, triceps]
-incline_bench_press:
+incline_bench_press:  # incline shifts work to the clavicular (upper) chest
   name: Incline Bench Press
   aliases: [incline bench, incline press]
-  primary: [chest, front_delts]
+  primary: [upper_chest, anterior_delt]
   secondary: [triceps]
 dumbbell_fly:
   name: Dumbbell Fly
@@ -27,54 +30,54 @@ cable_crossover:
   aliases: [cable fly]
   primary: [chest]
   secondary: [front_delts]
-push_up:
+push_up:  # serratus protracts the shoulder blade at lockout
   name: Push-Up
   aliases: [pushup, push ups]
   primary: [chest]
-  secondary: [front_delts, triceps, abs]
-dips:
+  secondary: [front_delts, triceps, abs, serratus_anterior]
+dips:  # dips load the lower (abdominal) pec fibres
   name: Dips
   aliases: [dip, chest dips]
-  primary: [triceps, chest]
+  primary: [triceps, lower_chest]
   secondary: [front_delts]
 
 # --- Shoulders ---
-overhead_press:
+overhead_press:  # front + side delts press; upper traps rotate the scapula
   name: Overhead Press
   aliases: [ohp, military press, shoulder press]
-  primary: [front_delts, side_delts]
-  secondary: [triceps, traps]
-lateral_raise:
+  primary: [anterior_delt, lateral_delt]
+  secondary: [triceps, upper_traps]
+lateral_raise:  # side delt abducts the arm
   name: Lateral Raise
   aliases: [side raise, lateral raises]
-  primary: [side_delts]
-  secondary: [traps]
-rear_delt_fly:
+  primary: [lateral_delt]
+  secondary: [upper_traps]
+rear_delt_fly:  # horizontal abduction: rear delt, scapular retractors
   name: Rear Delt Fly
   aliases: [reverse fly, reverse pec deck]
-  primary: [rear_delts]
-  secondary: [rhomboids, traps]
-face_pull:
+  primary: [posterior_delt]
+  secondary: [rhomboid, mid_traps]
+face_pull:  # rear delt + external rotation (infraspinatus)
   name: Face Pull
   aliases: [face pulls]
-  primary: [rear_delts, rhomboids]
+  primary: [posterior_delt, rhomboid, infraspinatus]
   secondary: [traps, biceps]
-shrug:
+shrug:  # shrugs elevate the scapula: upper traps
   name: Shrug
   aliases: [shrugs, barbell shrug]
-  primary: [traps]
+  primary: [upper_traps]
   secondary: [forearms]
 
 # --- Back ---
-pull_up:
+pull_up:  # shoulder adduction: lats with teres major
   name: Pull-Up
   aliases: [pullup, pull ups, chin up, chin-up]
-  primary: [lats]
+  primary: [latissimus_dorsi, teres_major]
   secondary: [biceps, rhomboids, forearms]
-lat_pulldown:
+lat_pulldown:  # same pattern as the pull-up
   name: Lat Pulldown
   aliases: [pulldown]
-  primary: [lats]
+  primary: [latissimus_dorsi, teres_major]
   secondary: [biceps, rhomboids]
 barbell_row:
   name: Barbell Row
@@ -86,22 +89,22 @@ seated_cable_row:
   aliases: [cable row, seated row]
   primary: [rhomboids, lats]
   secondary: [rear_delts, biceps]
-deadlift:
+deadlift:  # hip extension + spinal erectors holding the back
   name: Deadlift
   aliases: [conventional deadlift, dl]
-  primary: [hamstrings, glutes, lower_back]
+  primary: [hamstrings, gluteus_maximus, erector_spinae]
   secondary: [quads, traps, forearms, lats]
-romanian_deadlift:
+romanian_deadlift:  # hip hinge with straight-ish knees: all hamstrings
   name: Romanian Deadlift
   aliases: [rdl]
-  primary: [hamstrings, glutes]
-  secondary: [lower_back, forearms]
+  primary: [medial_hamstrings, biceps_femoris, gluteus_maximus]
+  secondary: [erector_spinae, forearms]
 
 # --- Legs ---
-squat:
+squat:  # knee + hip extension: quads and glute max
   name: Back Squat
   aliases: [back squat, barbell squat, squats]
-  primary: [quads, glutes]
+  primary: [quads, gluteus_maximus]
   secondary: [adductors, hamstrings, lower_back, abs]
 front_squat:
   name: Front Squat
@@ -109,32 +112,32 @@ front_squat:
   secondary: [glutes, abs, adductors]
 leg_press:
   name: Leg Press
-  primary: [quads, glutes]
+  primary: [quads, gluteus_maximus]
   secondary: [hamstrings, adductors]
-lunge:
+lunge:  # single-leg: glute med stabilises the pelvis
   name: Lunge
   aliases: [lunges, walking lunge]
-  primary: [quads, glutes]
-  secondary: [hamstrings, adductors, calves]
-bulgarian_split_squat:
+  primary: [quads, gluteus_maximus]
+  secondary: [hamstrings, adductors, calves, gluteus_medius]
+bulgarian_split_squat:  # single-leg: glute med stabilises the pelvis
   name: Bulgarian Split Squat
   aliases: [bss, split squat]
-  primary: [quads, glutes]
-  secondary: [adductors, hamstrings]
-hip_thrust:
+  primary: [quads, gluteus_maximus]
+  secondary: [gluteus_medius, adductors, hamstrings]
+hip_thrust:  # end-range hip extension: glute max
   name: Hip Thrust
   aliases: [glute bridge, hip thrusts]
-  primary: [glutes]
+  primary: [gluteus_maximus]
   secondary: [hamstrings, quads]
 leg_extension:
   name: Leg Extension
   aliases: [leg extensions]
   primary: [quads]
-leg_curl:
+leg_curl:  # gastrocnemius also flexes the knee
   name: Leg Curl
   aliases: [hamstring curl, lying leg curl]
   primary: [hamstrings]
-  secondary: [calves]
+  secondary: [gastrocnemius]
 adductor_machine:
   name: Adductor Machine
   aliases: [hip adduction]
@@ -142,47 +145,49 @@ adductor_machine:
 calf_raise:
   name: Calf Raise
   aliases: [calf raises, standing calf raise]
-  primary: [calves]
+  primary: [gastrocnemius, soleus]
 kettlebell_swing:
   name: Kettlebell Swing
   aliases: [kb swing]
-  primary: [glutes, hamstrings]
-  secondary: [lower_back, front_delts, abs]
+  primary: [gluteus_maximus, hamstrings]
+  secondary: [erector_spinae, anterior_delt, abs]
 
 # --- Arms ---
-biceps_curl:
+biceps_curl:  # supinated curl: both biceps heads, brachialis assists
   name: Biceps Curl
   aliases: [curl, bicep curl, barbell curl, dumbbell curl]
-  primary: [biceps]
-  secondary: [forearms]
-hammer_curl:
+  primary: [biceps_long_head, biceps_short_head]
+  secondary: [brachialis, forearms]
+hammer_curl:  # neutral grip shifts work to brachialis and brachioradialis
   name: Hammer Curl
-  primary: [biceps, forearms]
-triceps_pushdown:
+  primary: [brachialis, brachioradialis]
+  secondary: [biceps_long_head]
+triceps_pushdown:  # arms at the sides: lateral and medial heads lead
   name: Triceps Pushdown
   aliases: [pushdown, tricep pushdown, rope pushdown]
-  primary: [triceps]
-skull_crusher:
+  primary: [triceps_lateral_head, triceps_medial_head]
+  secondary: [triceps_long_head]
+skull_crusher:  # arms overhead-ish: long head stretched, all heads work
   name: Skull Crusher
   aliases: [skullcrusher, lying triceps extension]
-  primary: [triceps]
+  primary: [triceps_long_head, triceps_lateral_head, triceps_medial_head]
 
 # --- Core ---
 plank:
   name: Plank
   primary: [abs, obliques]
   secondary: [front_delts, glutes]
-crunch:
+crunch:  # spinal flexion from the top: upper rectus abdominis
   name: Crunch
   aliases: [crunches, sit up]
-  primary: [abs]
-  secondary: [obliques]
-hanging_leg_raise:
+  primary: [upper_abs]
+  secondary: [external_obliques]
+hanging_leg_raise:  # posterior pelvic tilt: lower abs; hip flexors lift the legs
   name: Hanging Leg Raise
   aliases: [leg raise, hanging leg raises]
-  primary: [abs]
-  secondary: [obliques, forearms]
-russian_twist:
+  primary: [lower_abs]
+  secondary: [external_obliques, forearms, hip_flexors]
+russian_twist:  # trunk rotation: obliques
   name: Russian Twist
-  primary: [obliques]
+  primary: [external_obliques]
   secondary: [abs]

@@ -17,6 +17,8 @@ class HandleSignals(QObject):
     started = Signal(str)                          # element name
     changing = Signal(str, float, float, float)    # name, dx, dy, dw  (export px, from drag start)
     finished = Signal(str, float, float, float)
+    clicked = Signal(str, QPointF)                 # name, scene pos (press + release without moving)
+    hovered = Signal(str, QPointF)
 
 
 class ElementHandle(QGraphicsRectItem):
@@ -38,6 +40,7 @@ class ElementHandle(QGraphicsRectItem):
         self._press = QPointF()
         self._start_rect = QRectF()
         self.dragging = False
+        self._moved = False
 
     # -- geometry ------------------------------------------------------------
     def set_box(self, box) -> None:
@@ -72,6 +75,7 @@ class ElementHandle(QGraphicsRectItem):
         self.update()
 
     def hoverMoveEvent(self, e) -> None:
+        self.signals.hovered.emit(self.name, e.scenePos())
         on_grip = self.name in RESIZABLE and self._grip_rect().contains(e.pos())
         self.setCursor(QCursor(Qt.SizeFDiagCursor if on_grip else Qt.SizeAllCursor))
 
@@ -95,10 +99,17 @@ class ElementHandle(QGraphicsRectItem):
             self._end(e.scenePos())
 
     # -- drag logic (also used directly by tests) ------------------------------
-    def _begin(self, mode: str, pos: QPointF) -> None:
+    def _begin(self, mode: str, pos: QPointF, force: bool = False) -> None:
         self._mode, self._press, self._start_rect = mode, QPointF(pos), QRectF(self.rect())
         self.dragging = True
-        self.signals.started.emit(self.name)
+        self._moved = False
+        if force:
+            self._start()
+
+    def _start(self) -> None:
+        if not self._moved:
+            self._moved = True
+            self.signals.started.emit(self.name)
 
     def _delta(self, pos: QPointF) -> tuple[float, float, float]:
         d = pos - self._press
@@ -111,6 +122,11 @@ class ElementHandle(QGraphicsRectItem):
         return d.x(), d.y(), 0.0
 
     def _update(self, pos: QPointF) -> None:
+        if not self._moved:
+            d = pos - self._press
+            if abs(d.x()) + abs(d.y()) < 4:          # still a click, not a drag
+                return
+            self._start()
         dx, dy, dw = self._delta(pos)
         r = QRectF(self._start_rect)
         if dw:
@@ -123,19 +139,22 @@ class ElementHandle(QGraphicsRectItem):
         self.signals.changing.emit(self.name, dx, dy, dw)
 
     def _end(self, pos: QPointF) -> None:
-        dx, dy, dw = self._delta(pos)
         self.dragging = False
         self.update()
+        if not self._moved:
+            self.signals.clicked.emit(self.name, QPointF(pos))
+            return
+        dx, dy, dw = self._delta(pos)
         self.signals.finished.emit(self.name, dx, dy, dw)
 
     def drag_by(self, dx: float, dy: float) -> None:
         start = self.rect().center()
-        self._begin("move", start)
+        self._begin("move", start, force=True)
         self._update(start + QPointF(dx, dy))
         self._end(start + QPointF(dx, dy))
 
     def resize_by(self, dw: float) -> None:
         start = self.rect().bottomRight()
-        self._begin("resize", start)
+        self._begin("resize", start, force=True)
         self._update(start + QPointF(dw, 0))
         self._end(start + QPointF(dw, 0))

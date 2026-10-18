@@ -23,6 +23,7 @@ class Muscle:
     full_name: str
     group: str                        # parent Simple group id (== id for groups)
     views: tuple[str, ...] = field(default=())
+    default: bool = True              # lit when only its group is named; shown at Simple level
 
 
 class MuscleRegistry:
@@ -35,8 +36,10 @@ class MuscleRegistry:
         for mid, spec in (data.get("muscles") or {}).items():
             if spec["group"] not in self.groups:
                 raise ValueError(f"muscle '{mid}' has unknown group '{spec['group']}'")
+            if mid in self.groups:
+                raise ValueError(f"muscle id '{mid}' clashes with a group id")
             self.detailed[mid] = Muscle(mid, spec["short_name"], spec["full_name"], spec["group"],
-                                        tuple(spec.get("views", ())))
+                                        tuple(spec.get("views", ())), bool(spec.get("default", True)))
         self.aliases: dict[str, list[str]] = {normalize(k): v for k, v in (data.get("aliases") or {}).items()}
 
     # -- lookup -------------------------------------------------------------
@@ -51,9 +54,16 @@ class MuscleRegistry:
     def group_of(self, mid: str) -> str:
         return self.get(mid).group
 
-    def members(self, gid: str) -> list[str]:
-        """Detailed muscles in a group (empty until the detailed map exists)."""
-        return [m.id for m in self.detailed.values() if m.group == gid]
+    def members(self, gid: str, default_only: bool = False) -> list[str]:
+        """Detailed muscles in a group."""
+        return [m.id for m in self.detailed.values() if m.group == gid and (m.default or not default_only)]
+
+    def is_group(self, mid: str) -> bool:
+        return mid in self.groups
+
+    def expand(self, ref: str) -> list[str]:
+        """Detailed muscles a resolved id stands for: a group -> its default members, a muscle -> itself."""
+        return self.members(ref, default_only=True) if ref in self.groups else [ref]
 
     def known(self) -> list[str]:
         return sorted(self.groups) + sorted(self.detailed) + sorted(self.aliases)

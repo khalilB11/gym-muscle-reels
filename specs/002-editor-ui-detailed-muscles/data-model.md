@@ -21,20 +21,22 @@ Times are seconds (float). All entities are plain Python dataclasses in the core
 | front_delts | `anterior_delt` | front |
 | side_delts | `lateral_delt` | front, back |
 | rear_delts | `posterior_delt` | back |
-| traps | `upper_traps` (front + back), `mid_traps`, `lower_traps` (back), `sternocleidomastoid` (front) | front, back |
-| rhomboids | `rhomboids`, `infraspinatus` | back |
-| lats | `latissimus_dorsi` (back, plus its visible edge on the front), `teres_major` (back) | front, back |
+| traps | `upper_traps` (front + back), `mid_traps`, `lower_traps` (back), `sternocleidomastoid`* (front) | front, back |
+| rhomboids | `rhomboid`, `infraspinatus`* | back |
+| lats | `latissimus_dorsi`, `teres_major` | back |
 | lower_back | `erector_spinae` | back |
 | biceps | `biceps_long_head`, `biceps_short_head`, `brachialis` | front |
 | triceps | `triceps_long_head`, `triceps_lateral_head`, `triceps_medial_head` | back |
 | forearms | `brachioradialis`, `wrist_flexors` (front), `wrist_extensors` (back) | front, back |
 | abs | `upper_abs`, `lower_abs` | front |
-| obliques | `external_obliques`, `serratus_anterior` | front |
+| obliques | `external_obliques`, `serratus_anterior`* | front |
 | glutes | `gluteus_maximus`, `gluteus_medius` | back |
-| quads | `rectus_femoris`, `vastus_lateralis`, `vastus_medialis`, `hip_flexors` | front |
+| quads | `rectus_femoris`, `vastus_lateralis`, `vastus_medialis`, `hip_flexors`* | front |
 | hamstrings | `biceps_femoris`, `medial_hamstrings` | back |
-| adductors | `adductors` | front |
-| calves | `gastrocnemius`, `soleus`, `tibialis_anterior` | back, front |
+| adductors | `hip_adductors` | front |
+| calves | `gastrocnemius`, `soleus`, `tibialis_anterior`* | back, front |
+
+\* `default: false`: not lit when only the group is named, and not shown at Simple level.
 
 Parent choices for neck, serratus, hip flexors and tibialis: see [research.md R6](research.md#r6-parent-groups-for-muscles-outside-the-18-simple-groups).
 

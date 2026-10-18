@@ -132,24 +132,37 @@ description: "Task list for feature 002: Reel Editor App with Detailed Muscle Ma
 
 ### Tests (write first, must fail)
 
-- [ ] T043 [P] [US4] Write `tests/test_muscles.py`: exactly 40 detailed muscles; each has exactly one parent among the 18 groups with the table in data-model.md (e.g. `sternocleidomastoid`→`traps`, `serratus_anterior`→`obliques`, `hip_flexors`→`quads`, `tibialis_anterior`→`calves`, `infraspinatus`→`rhomboids`, `teres_major`→`lats`); every muscle has polygons in each listed view; `short_name` ≤ 16 chars; resolving `chest` yields `upper_chest, mid_chest, lower_chest`
-- [ ] T044 [P] [US4] Write `tests/test_activation.py`: Detailed: `incline_bench_press` → `{upper_chest: primary, anterior_delt: primary, triceps_*: secondary}` and `mid_chest`/`lower_chest` absent; group in primary + its muscle in secondary → the specific muscle's list wins for that muscle; Simple level from detailed activation: group primary if any muscle primary; segment `overrides` applied last (`off` removes)
-- [ ] T045 [P] [US4] Write `tests/test_hit_test.py`: `BodyMap.hit_test('front', x, y, 'detailed')` returns `upper_chest` at the upper-chest centroid, `None` outside the body; at `simple` returns `chest`; mirrored left/right sides both hit
-- [ ] T046 [P] [US4] Write golden tests `tests/golden/test_golden.py`: render front/back at Detailed and Simple for `incline_bench_press`, `lateral_raise`, `hammer_curl`, `bulgarian_split_squat` at width 420 and compare with `tests/golden/*.png` (tolerance: mean abs diff < 1.0); `--update-golden` rewrites them
-- [ ] T047 [P] [US4] Write `tests/app/test_muscle_clicks.py`: hover over upper chest shows tooltip with `full_name`; click cycles primary → secondary → off on the selected segment (`overrides` updated, legend redraws); undo restores; Detail toggle redraws figures
+- [X] T043 [P] [US4] Write `tests/test_muscles.py`: exactly 40 detailed muscles; each has exactly one parent among the 18 groups with the table in data-model.md (e.g. `sternocleidomastoid`→`traps`, `serratus_anterior`→`obliques`, `hip_flexors`→`quads`, `tibialis_anterior`→`calves`, `infraspinatus`→`rhomboids`, `teres_major`→`lats`); every muscle has polygons in each listed view; `short_name` ≤ 16 chars; resolving `chest` yields `upper_chest, mid_chest, lower_chest`
+- [X] T044 [P] [US4] Write `tests/test_activation.py`: Detailed: `incline_bench_press` → `{upper_chest: primary, anterior_delt: primary, triceps_*: secondary}` and `mid_chest`/`lower_chest` absent; group in primary + its muscle in secondary → the specific muscle's list wins for that muscle; Simple level from detailed activation: group primary if any muscle primary; segment `overrides` applied last (`off` removes)
+- [X] T045 [P] [US4] Write `tests/test_hit_test.py`: `BodyMap.hit_test('front', x, y, 'detailed')` returns `upper_chest` at the upper-chest centroid, `None` outside the body; at `simple` returns `chest`; mirrored left/right sides both hit
+- [X] T046 [P] [US4] Write golden tests `tests/golden/test_golden.py`: render front/back at Detailed and Simple for `incline_bench_press`, `lateral_raise`, `hammer_curl`, `bulgarian_split_squat` at width 420 and compare with `tests/golden/*.png` (tolerance: mean abs diff < 1.0); `--update-golden` rewrites them
+- [X] T047 [P] [US4] Write `tests/app/test_muscle_clicks.py`: hover over upper chest shows tooltip with `full_name`; click cycles primary → secondary → off on the selected segment (`overrides` updated, legend redraws); undo restores; Detail toggle redraws figures
 
 ### Implementation
 
-- [ ] T048 [US4] Draw `assets/bodymap.svg` (200×440 design space per view, `<g id="front">`, `<g id="back">`, one `<path id="<muscle_id>">` per right-side region, plus filler shapes `filler-*`), keeping the current silhouette; all 40 muscle ids from data-model.md
-- [ ] T049 [US4] Write `tools/build_bodymap.py`: parse `assets/bodymap.svg` with svgelements, flatten curves (tolerance 0.5 design units), mirror right→left, write `musclereels/data/bodymap/front.json` and `back.json` (`{fillers: [...], regions: {id: [[x,y],...]}}`); fail if any id in `muscles.yaml` lacks a region in a listed view; commit generated JSON
-- [ ] T050 [US4] Extend `musclereels/data/muscles.yaml` with the 40 detailed muscles: `id`, `short_name` (≤ 16 chars), `full_name`, `group`, `views`, exactly per data-model.md
-- [ ] T051 [US4] Refactor `musclereels/bodymap.py` into `BodyMap` loading the JSON art: `render(view, activation, width_px, theme, level, glow)` with Chaikin smoothing (2 iterations) and Simple level drawn by merging regions per group; `hit_test(view, x, y, level)` (point-in-polygon, reverse draw order); remove the inline polygon lists; keep `render_figure` as a wrapper for compatibility
-- [ ] T052 [US4] Implement activation in `musclereels/project.py` (`Project.activation(segment, level)`) and MuscleRef support in `musclereels/exercises.py`: refs may be groups, muscles or aliases; precedence rules from data-model.md "Exercise"
-- [ ] T053 [US4] Update legend in `musclereels/overlay.py`: Detailed names use `short_name`; when > 6 chips, group by parent ("Chest: Upper, Mid"); Simple label "Traps & Neck" only when `sternocleidomastoid` is lit, "Lower Leg" when `tibialis_anterior` is lit
-- [ ] T054 [US4] Remap `musclereels/data/exercises.yaml` to detailed muscles where consensus is clear (incline press → `upper_chest`; hammer curl → `brachialis`, `brachioradialis`; lateral raise → `lateral_delt`; Bulgarian split squat → `gluteus_medius` secondary; RDL → `medial_hamstrings`, `biceps_femoris`; shrug → `upper_traps`; face pull → `posterior_delt`, `infraspinatus`; calf raise → `gastrocnemius`, `soleus` …), keeping group refs elsewhere; one-line rationale comment per change (Constitution III)
-- [ ] T055 [US4] CLI: `--detail {simple,detailed}` on `render`/`preview`; `list --muscles --detailed` prints id, short name, full name, group (`musclereels/cli.py`)
-- [ ] T056 [US4] App: Detail toggle in the toolbar (undoable `SetDetailLevel`); in `figure_item.py` map scene coords → design coords, hover tooltip via `hit_test` + `full_name`, click pushes `SetMuscleOverride` cycling primary → secondary → off; muscle chips in the inspector mirror the selection
-- [ ] T057 [US4] Regenerate goldens, review them visually, run T043–T047 green and quickstart §3
+- [X] T048 [US4] Draw `assets/bodymap.svg` (200×440 design space per view, `<g id="front">`, `<g id="back">`, one `<path id="<muscle_id>">` per right-side region, plus filler shapes `filler-*`), keeping the current silhouette; all 40 muscle ids from data-model.md
+- [X] T049 [US4] Write `tools/build_bodymap.py`: parse `assets/bodymap.svg` with svgelements, flatten curves (tolerance 0.5 design units), mirror right→left, write `musclereels/data/bodymap/front.json` and `back.json` (`{fillers: [...], regions: {id: [[x,y],...]}}`); fail if any id in `muscles.yaml` lacks a region in a listed view; commit generated JSON
+- [X] T050 [US4] Extend `musclereels/data/muscles.yaml` with the 40 detailed muscles: `id`, `short_name` (≤ 16 chars), `full_name`, `group`, `views`, exactly per data-model.md
+- [X] T051 [US4] Refactor `musclereels/bodymap.py` into `BodyMap` loading the JSON art: `render(view, activation, width_px, theme, level, glow)` with Chaikin smoothing (2 iterations) and Simple level drawn by merging regions per group; `hit_test(view, x, y, level)` (point-in-polygon, reverse draw order); remove the inline polygon lists; keep `render_figure` as a wrapper for compatibility
+- [X] T052 [US4] Implement activation in `musclereels/project.py` (`Project.activation(segment, level)`) and MuscleRef support in `musclereels/exercises.py`: refs may be groups, muscles or aliases; precedence rules from data-model.md "Exercise"
+- [X] T053 [US4] Update legend in `musclereels/overlay.py`: Detailed names use `short_name`; when > 6 chips, group by parent ("Chest: Upper, Mid"); Simple label "Traps & Neck" only when `sternocleidomastoid` is lit, "Lower Leg" when `tibialis_anterior` is lit
+- [X] T054 [US4] Remap `musclereels/data/exercises.yaml` to detailed muscles where consensus is clear (incline press → `upper_chest`; hammer curl → `brachialis`, `brachioradialis`; lateral raise → `lateral_delt`; Bulgarian split squat → `gluteus_medius` secondary; RDL → `medial_hamstrings`, `biceps_femoris`; shrug → `upper_traps`; face pull → `posterior_delt`, `infraspinatus`; calf raise → `gastrocnemius`, `soleus` …), keeping group refs elsewhere; one-line rationale comment per change (Constitution III)
+- [X] T055 [US4] CLI: `--detail {simple,detailed}` on `render`/`preview`; `list --muscles --detailed` prints id, short name, full name, group (`musclereels/cli.py`)
+- [X] T056 [US4] App: Detail toggle in the toolbar (undoable `SetDetailLevel`); in `figure_item.py` map scene coords → design coords, hover tooltip via `hit_test` + `full_name`, click pushes `SetMuscleOverride` cycling primary → secondary → off; muscle chips in the inspector mirror the selection
+- [X] T057 [US4] Regenerate goldens, review them visually, run T043–T047 green and quickstart §3
+
+Implementation notes (deviations recorded):
+- Muscle ids `rhomboid` and `hip_adductors` (not `rhomboids`/`adductors`) so they don't clash with group ids.
+- Latissimus dorsi is drawn on the back view only (no front sliver); hip flexors, tibialis, serratus, neck
+  and infraspinatus are `default: false`: naming their group doesn't light them, and they don't light their
+  group at Simple level (avoids over-claiming).
+- Simple level keeps the v0.1 art (pixel-identical goldens); Detailed uses the new SVG art. No Chaikin
+  smoothing (flat style matches the Simple figures).
+- Legend: a full set of a group's main parts collapses to the group chip ("Triceps"); > 8 chips → group chips.
+- Muscle boxes at Detailed level: one box per main muscle; assisting muscles combined per group unless the
+  group also has a main muscle. Style "Both" places the boxes in free space and hides the legend.
+- `tests/data/exercises_simple_v1.json` + `tests/test_activation.py` prove all 36 exercises are unchanged
+  at Simple level after the remap.
 
 **Checkpoint**: Detailed map works in CLI and app; Simple output unchanged (T006 still green).
 

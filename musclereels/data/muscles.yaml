@@ -2,7 +2,9 @@
 #
 # groups:  the 18 Simple-level muscle groups (spec 001). Order = legend order.
 # aliases: friendly names that expand to one or more groups (or, later, muscles).
-# muscles: Detailed-level muscles (spec 002, added in Phase 5 / US4).
+# muscles: Detailed-level muscles (spec 002). Each belongs to one Simple group.
+#   default: false = not lit when only its group is named (e.g. `quads` does not light the hip
+#   flexors) and not shown at Simple level (avoids over-claiming, Constitution III).
 
 groups:
   chest:       {name: Chest}
@@ -37,4 +39,53 @@ aliases:
   glute: [glutes]
   calf: [calves]
 
-muscles: {}
+muscles:
+  # chest
+  upper_chest:          {short_name: Upper Chest,    full_name: "Pectoralis major (clavicular head)", group: chest, views: [front]}
+  mid_chest:            {short_name: Mid Chest,      full_name: "Pectoralis major (sternal head)", group: chest, views: [front]}
+  lower_chest:          {short_name: Lower Chest,    full_name: "Pectoralis major (abdominal head)", group: chest, views: [front]}
+  # shoulders
+  anterior_delt:        {short_name: Front Delt,     full_name: "Deltoid (anterior head)", group: front_delts, views: [front]}
+  lateral_delt:         {short_name: Side Delt,      full_name: "Deltoid (lateral head)", group: side_delts, views: [front, back]}
+  posterior_delt:       {short_name: Rear Delt,      full_name: "Deltoid (posterior head)", group: rear_delts, views: [back]}
+  # neck / traps
+  upper_traps:          {short_name: Upper Traps,    full_name: "Trapezius (upper fibres)", group: traps, views: [front, back]}
+  mid_traps:            {short_name: Mid Traps,      full_name: "Trapezius (middle fibres)", group: traps, views: [back]}
+  lower_traps:          {short_name: Lower Traps,    full_name: "Trapezius (lower fibres)", group: traps, views: [back]}
+  sternocleidomastoid:  {short_name: Neck,           full_name: "Sternocleidomastoid", group: traps, views: [front], default: false}
+  # upper back
+  rhomboid:             {short_name: Rhomboids,      full_name: "Rhomboid major and minor", group: rhomboids, views: [back]}
+  infraspinatus:        {short_name: Rotator Cuff,   full_name: "Infraspinatus (rotator cuff)", group: rhomboids, views: [back], default: false}
+  latissimus_dorsi:     {short_name: Lats,           full_name: "Latissimus dorsi", group: lats, views: [back]}
+  teres_major:          {short_name: Teres Major,    full_name: "Teres major", group: lats, views: [back]}
+  erector_spinae:       {short_name: Spinal Erectors, full_name: "Erector spinae", group: lower_back, views: [back]}
+  # arms
+  biceps_long_head:     {short_name: Biceps (Long),  full_name: "Biceps brachii (long head)", group: biceps, views: [front]}
+  biceps_short_head:    {short_name: Biceps (Short), full_name: "Biceps brachii (short head)", group: biceps, views: [front]}
+  brachialis:           {short_name: Brachialis,     full_name: "Brachialis", group: biceps, views: [front]}
+  triceps_long_head:    {short_name: Triceps (Long), full_name: "Triceps brachii (long head)", group: triceps, views: [back]}
+  triceps_lateral_head: {short_name: Triceps (Lat.), full_name: "Triceps brachii (lateral head)", group: triceps, views: [back]}
+  triceps_medial_head:  {short_name: Triceps (Med.), full_name: "Triceps brachii (medial head)", group: triceps, views: [back]}
+  brachioradialis:      {short_name: Brachioradialis, full_name: "Brachioradialis", group: forearms, views: [front]}
+  wrist_flexors:        {short_name: Wrist Flexors,  full_name: "Forearm flexors (wrist and finger)", group: forearms, views: [front]}
+  wrist_extensors:      {short_name: Wrist Extensors, full_name: "Forearm extensors (wrist and finger)", group: forearms, views: [back]}
+  # core
+  upper_abs:            {short_name: Upper Abs,      full_name: "Rectus abdominis (upper)", group: abs, views: [front]}
+  lower_abs:            {short_name: Lower Abs,      full_name: "Rectus abdominis (lower)", group: abs, views: [front]}
+  external_obliques:    {short_name: Obliques,       full_name: "External obliques", group: obliques, views: [front]}
+  serratus_anterior:    {short_name: Serratus,       full_name: "Serratus anterior", group: obliques, views: [front], default: false}
+  # hips
+  gluteus_maximus:      {short_name: Glute Max,      full_name: "Gluteus maximus", group: glutes, views: [back]}
+  gluteus_medius:       {short_name: Glute Med,      full_name: "Gluteus medius", group: glutes, views: [back]}
+  hip_flexors:          {short_name: Hip Flexors,    full_name: "Iliopsoas (hip flexors)", group: quads, views: [front], default: false}
+  hip_adductors:        {short_name: Adductors,      full_name: "Hip adductors (longus, magnus, brevis)", group: adductors, views: [front]}
+  # thighs
+  rectus_femoris:       {short_name: Rectus Femoris, full_name: "Rectus femoris (quadriceps)", group: quads, views: [front]}
+  vastus_lateralis:     {short_name: Outer Quad,     full_name: "Vastus lateralis (quadriceps)", group: quads, views: [front]}
+  vastus_medialis:      {short_name: Inner Quad,     full_name: "Vastus medialis (quadriceps)", group: quads, views: [front]}
+  biceps_femoris:       {short_name: Outer Hamstring, full_name: "Biceps femoris (hamstrings)", group: hamstrings, views: [back]}
+  medial_hamstrings:    {short_name: Inner Hamstring, full_name: "Semitendinosus and semimembranosus", group: hamstrings, views: [back]}
+  # lower legs
+  gastrocnemius:        {short_name: Gastrocnemius,  full_name: "Gastrocnemius (calf)", group: calves, views: [front, back]}
+  soleus:               {short_name: Soleus,         full_name: "Soleus (calf)", group: calves, views: [front, back]}
+  tibialis_anterior:    {short_name: Tibialis,       full_name: "Tibialis anterior", group: calves, views: [front], default: false}

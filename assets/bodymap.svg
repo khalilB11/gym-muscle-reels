@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Detailed muscle map — editable source (spec 002, research R5).
+
+  * Design space: 200 x 440 per figure; x = 100 is the body's midline.
+  * Draw ONLY the right half of the image (x >= 100). tools/build_bodymap.py mirrors every shape.
+  * One <polygon> per muscle region, id = "<view>-<muscle_id>" (add "-2", "-3" for extra pieces).
+    Muscle ids must exist in musclereels/data/muscles.yaml. Draw order = document order.
+  * Head, neck, hands, joints and feet ("fillers") come from musclereels/bodymap.py.
+  * After editing:  python tools/build_bodymap.py   (writes musclereels/data/bodymap/*.json)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="440" viewBox="0 0 420 440">
+  <style>polygon { fill: #3a404c; stroke: #101216; stroke-width: 0.8; }</style>
+
+  <g id="front">
+    <polygon id="front-sternocleidomastoid" points="103,45 107,46 106,62 101,63"/>
+    <polygon id="front-upper_traps" points="108,50 124,62 112,64"/>
+    <polygon id="front-anterior_delt" points="124,64 133,65 137,80 139,104 131,88 126,74"/>
+    <polygon id="front-lateral_delt" points="133,65 139,66 147,80 147,98 139,104 137,80"/>
+    <polygon id="front-upper_chest" points="101,68 123,66 129,76 101,79"/>
+    <polygon id="front-mid_chest" points="101,79 129,76 131,90 101,91"/>
+    <polygon id="front-lower_chest" points="101,91 131,90 119,104 101,102"/>
+    <polygon id="front-serratus_anterior" points="117,106 130,96 132,106 134,118 124,121 117,117"/>
+    <polygon id="front-external_obliques" points="117,117 124,121 134,118 132,156 125,182 115,176 116,140"/>
+    <polygon id="front-upper_abs" points="102,106 114,106 114,126 102,126"/>
+    <polygon id="front-upper_abs-2" points="102,129 114,129 114,149 102,149"/>
+    <polygon id="front-lower_abs" points="102,152 114,152 114,172 102,172"/>
+    <polygon id="front-lower_abs-2" points="102,175 112,175 112,192 102,192"/>
+    <polygon id="front-biceps_short_head" points="132,104 137,104 138,126 134,140 131,130 130,112"/>
+    <polygon id="front-biceps_long_head" points="137,104 142,104 148,118 145,132 138,126"/>
+    <polygon id="front-brachialis" points="138,126 145,132 146,138 138,144 134,140"/>
+    <polygon id="front-brachioradialis" points="140,149 146,148 154,164 157,186 150,180 144,162"/>
+    <polygon id="front-wrist_flexors" points="134,150 140,149 144,162 150,180 157,186 157,192 152,206 144,206 138,184 133,164"/>
+    <polygon id="front-hip_flexors" points="112,190 122,190 126,200 117,210 110,202"/>
+    <polygon id="front-hip_adductors" points="101,226 106,224 106,252 110,284 104,290 101,262"/>
+    <polygon id="front-rectus_femoris" points="115,218 124,212 126,240 124,280 122,300 118,292 114,270 113,240"/>
+    <polygon id="front-vastus_lateralis" points="124,212 132,202 138,230 138,268 133,296 126,306 122,300 124,280 126,240"/>
+    <polygon id="front-vastus_medialis" points="106,222 115,218 113,240 114,270 118,292 122,300 116,304 109,282 105,250"/>
+    <polygon id="front-gastrocnemius" points="112,330 121,330 122,348 120,372 113,372 110,352"/>
+    <polygon id="front-soleus" points="113,372 120,372 124,386 127,402 118,402 112,380"/>
+    <polygon id="front-tibialis_anterior" points="121,330 130,328 136,352 134,384 127,402 124,386 120,372 122,348"/>
+  </g>
+
+  <g id="back" transform="translate(220,0)">
+    <polygon id="back-upper_traps" points="101,46 108,50 127,63 118,66 101,60"/>
+    <polygon id="back-mid_traps" points="101,60 118,66 127,63 120,72 110,76 101,76"/>
+    <polygon id="back-lower_traps" points="101,76 110,76 108,104 106,124 101,124"/>
+    <polygon id="back-rhomboid" points="110,76 120,72 118,90 108,104"/>
+    <polygon id="back-infraspinatus" points="120,72 126,74 127,78 130,92 124,102 118,90"/>
+    <polygon id="back-teres_major" points="124,102 130,92 132,96 133,104 128,112 120,108"/>
+    <polygon id="back-latissimus_dorsi" points="108,104 118,90 124,102 120,108 128,112 130,124 130,138 118,166 110,170 110,140 106,124"/>
+    <polygon id="back-erector_spinae" points="101,124 106,124 110,140 110,170 113,186 101,190"/>
+    <polygon id="back-posterior_delt" points="124,64 133,65 137,80 139,104 131,88 126,74"/>
+    <polygon id="back-lateral_delt" points="133,65 139,66 147,80 147,98 139,104 137,80"/>
+    <polygon id="back-triceps_long_head" points="132,104 137,104 140,124 138,144 131,130 130,112"/>
+    <polygon id="back-triceps_lateral_head" points="137,104 142,104 148,118 146,130 140,124"/>
+    <polygon id="back-triceps_medial_head" points="140,124 146,130 146,138 138,144"/>
+    <polygon id="back-wrist_extensors" points="134,150 146,148 154,164 157,192 152,206 144,206 138,184 133,164"/>
+    <polygon id="back-gluteus_medius" points="112,184 118,182 133,196 134,206 122,200"/>
+    <polygon id="back-gluteus_maximus" points="101,188 112,184 122,200 134,206 136,220 125,234 107,234 101,224"/>
+    <polygon id="back-biceps_femoris" points="121,238 136,232 138,266 133,296 126,306 122,300 122,270"/>
+    <polygon id="back-medial_hamstrings" points="104,238 121,238 122,270 122,300 116,304 109,282"/>
+    <polygon id="back-gastrocnemius" points="110,328 132,328 139,352 134,370 122,376 110,368 108,350"/>
+    <polygon id="back-soleus" points="110,368 122,376 134,370 135,380 125,396 117,396 110,372"/>
+  </g>
+</svg>

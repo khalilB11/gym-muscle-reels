@@ -5,7 +5,10 @@ one side of the body and mirrored, so tweaking a muscle means editing one list.
 """
 from __future__ import annotations
 
+import json
 import math
+from functools import lru_cache
+from importlib import resources
 from typing import Iterable
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -132,10 +135,60 @@ def display_name(muscle: str) -> str:
     return registry().display_name(muscle)
 
 
+# --- detailed art (generated from assets/bodymap.svg by tools/build_bodymap.py) -------------
+
+@lru_cache(maxsize=1)
+def _detailed() -> dict[str, dict[str, list[Poly]]]:
+    out = {}
+    for view in ("front", "back"):
+        data = json.loads(resources.files("musclereels").joinpath(f"data/bodymap/{view}.json").read_text("utf-8"))
+        out[view] = {mid: [[tuple(p) for p in poly] for poly in polys] for mid, polys in data["regions"].items()}
+    return out
+
+
+class _DetailedShapes(dict):
+    """DETAILED[view][muscle_id] -> polygons (both sides). Loaded lazily from package data."""
+
+    def __missing__(self, view):
+        return _detailed()[view]
+
+    def items(self):
+        return _detailed().items()
+
+    def __iter__(self):
+        return iter(_detailed())
+
+
+DETAILED = _DetailedShapes()
+
+
+def _shapes(view: str, level: str) -> dict[str, list[Poly]]:
+    return _detailed()[view] if level == "detailed" else SHAPES[view]
+
+
+def _levels_detailed(view: str, primary: Iterable[str], secondary: Iterable[str]) -> dict[str, str]:
+    shapes = _detailed()[view]
+    levels: dict[str, str] = {}
+    for level, muscles in (("secondary", secondary), ("primary", primary)):
+        for m in muscles:
+            if m in shapes:
+                levels[m] = level
+            elif m in GROUP_SHAPES:                       # a group named at detailed level
+                for mid in registry().expand(m):
+                    if mid in shapes:
+                        levels[mid] = level
+    return levels
+
+
 def _levels(view: str, primary: Iterable[str], secondary: Iterable[str]) -> dict[str, str]:
     levels: dict[str, str] = {}
+    reg = registry()
     for level, muscles in (("secondary", secondary), ("primary", primary)):  # primary wins
         for m in muscles:
+            if m not in GROUP_SHAPES:                 # a detailed muscle drawn on the simple figure
+                if not reg.get(m).default:
+                    continue
+                m = reg.group_of(m)
             for v, sid in GROUP_SHAPES[m]:
                 if v == view:
                     levels[sid] = level
@@ -150,15 +203,18 @@ def render_figure(
     theme,
     lit: bool = True,
     supersample: int = 4,
+    level: str = "simple",
 ) -> Image.Image:
     """Render one figure ('front' or 'back') as an RGBA image `width_px` wide.
 
     lit=False renders every muscle as inactive (the "resting" state); the
     compositor cross-fades between the two to animate the highlight.
+    level="detailed" draws the 40-muscle map; muscles are then detailed ids (groups are expanded).
     """
     s = width_px * supersample / W
     big = (round(W * s), round(H * s))
-    levels = _levels(view, primary, secondary) if lit else {}
+    shapes = _shapes(view, level)
+    levels = ((_levels_detailed if level == "detailed" else _levels)(view, primary, secondary)) if lit else {}
     colors = {"primary": theme.primary, "secondary": theme.secondary}
     gap = max(1, round(1.8 * s))
 
@@ -169,7 +225,7 @@ def render_figure(
     d = ImageDraw.Draw(body)
     for poly in FILLERS[view]:
         d.polygon(scaled(poly), fill=theme.filler, outline=theme.gap, width=gap)
-    for sid, polys in SHAPES[view].items():
+    for sid, polys in shapes.items():
         fill = colors.get(levels.get(sid, ""), theme.inactive)
         for poly in polys:
             d.polygon(scaled(poly), fill=fill, outline=theme.gap, width=gap)
@@ -177,9 +233,9 @@ def render_figure(
     if levels:
         glow = Image.new("RGBA", big, (0, 0, 0, 0))
         g = ImageDraw.Draw(glow)
-        for sid, level in levels.items():
-            for poly in SHAPES[view][sid]:
-                g.polygon(scaled(poly), fill=colors[level])
+        for sid, lvl in levels.items():
+            for poly in shapes[sid]:
+                g.polygon(scaled(poly), fill=colors[lvl])
         glow = glow.filter(ImageFilter.GaussianBlur(radius=6 * s))
         body = Image.alpha_composite(glow, body)
 
@@ -196,13 +252,26 @@ def _centroid_x(poly: Poly) -> float:
     return sum(x for x, _ in poly) / len(poly)
 
 
-def muscle_region(muscle: str, pad: float = 0.8, min_size: float = 84) -> tuple[str, tuple[float, float, float, float]]:
-    """(view, square crop box in design units) framing one muscle group for a close-up.
+def _polys_by_view(muscles, level: str) -> dict[str, list[Poly]]:
+    by_view: dict[str, list[Poly]] = {}
+    for muscle in ([muscles] if isinstance(muscles, str) else muscles):
+        if level == "detailed":
+            for mid in (registry().expand(muscle) if muscle in GROUP_SHAPES else [muscle]):
+                for view, regions in _detailed().items():
+                    if mid in regions:
+                        by_view.setdefault(view, []).extend(regions[mid])
+        else:
+            for view, sid in GROUP_SHAPES[muscle]:
+                by_view.setdefault(view, []).extend(SHAPES[view][sid])
+    return by_view
+
+
+def muscle_region(muscle, pad: float = 0.8, min_size: float = 84,
+                  level: str = "simple") -> tuple[str, tuple[float, float, float, float]]:
+    """(view, square crop box in design units) framing one muscle (or a list of muscles) for a close-up.
 
     Picks the view where the muscle is largest; for paired muscles frames one side only."""
-    by_view: dict[str, list[Poly]] = {}
-    for view, sid in GROUP_SHAPES[muscle]:
-        by_view.setdefault(view, []).extend(SHAPES[view][sid])
+    by_view = _polys_by_view(muscle, level)
     view = max(by_view, key=lambda v: sum(_area(p) for p in by_view[v]))
     polys = [p for p in by_view[view] if _centroid_x(p) >= 98] or by_view[view]
     xs = [x for p in polys for x, _ in p]
@@ -215,13 +284,14 @@ def muscle_region(muscle: str, pad: float = 0.8, min_size: float = 84) -> tuple[
 
 
 def render_crop(view: str, primary: Iterable[str], secondary: Iterable[str], box, size_px: int, theme,
-                lit: bool = True, supersample: int = 3) -> Image.Image:
+                lit: bool = True, supersample: int = 3, level: str = "simple") -> Image.Image:
     """Render the part of a figure inside `box` (design units) as a size_px x size_px RGBA image,
     in the same style as render_figure."""
     x0, y0, x1, y1 = box
     s = size_px * supersample / (x1 - x0)
     big = (size_px * supersample, size_px * supersample)
-    levels = _levels(view, primary, secondary) if lit else {}
+    shapes = _shapes(view, level)
+    levels = ((_levels_detailed if level == "detailed" else _levels)(view, primary, secondary)) if lit else {}
     colors = {"primary": theme.primary, "secondary": theme.secondary}
     gap = max(1, round(1.8 * s))
 
@@ -232,16 +302,44 @@ def render_crop(view: str, primary: Iterable[str], secondary: Iterable[str], box
     d = ImageDraw.Draw(body)
     for poly in FILLERS[view]:
         d.polygon(tr(poly), fill=theme.filler, outline=theme.gap, width=gap)
-    for sid, polys in SHAPES[view].items():
+    for sid, polys in shapes.items():
         fill = colors.get(levels.get(sid, ""), theme.inactive)
         for poly in polys:
             d.polygon(tr(poly), fill=fill, outline=theme.gap, width=gap)
     if levels:
         glow = Image.new("RGBA", big, (0, 0, 0, 0))
         g = ImageDraw.Draw(glow)
-        for sid, level in levels.items():
-            for poly in SHAPES[view][sid]:
-                g.polygon(tr(poly), fill=colors[level])
+        for sid, lvl in levels.items():
+            for poly in shapes[sid]:
+                g.polygon(tr(poly), fill=colors[lvl])
         glow = glow.filter(ImageFilter.GaussianBlur(radius=4 * s))
         body = Image.alpha_composite(glow, body)
     return body.resize((size_px, size_px), Image.LANCZOS)
+
+
+# --- hit testing --------------------------------------------------------------------
+
+def _inside(x: float, y: float, poly: Poly) -> bool:
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x0, y0 = poly[i]
+        x1, y1 = poly[(i + 1) % n]
+        if (y0 > y) != (y1 > y) and x < (x1 - x0) * (y - y0) / (y1 - y0) + x0:
+            inside = not inside
+    return inside
+
+
+def _sid_group(view: str, sid: str) -> str:
+    for gid, shapes in GROUP_SHAPES.items():
+        if (view, sid) in shapes:
+            return gid
+    return sid
+
+
+def hit_test(view: str, x: float, y: float, level: str = "simple"):
+    """Muscle (detailed) or group (simple) id under design point (x, y), or None."""
+    for sid, polys in reversed(list(_shapes(view, level).items())):
+        if any(_inside(x, y, p) for p in polys):
+            return sid if level == "detailed" else _sid_group(view, sid)
+    return None

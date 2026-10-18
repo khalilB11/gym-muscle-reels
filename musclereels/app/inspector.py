@@ -136,7 +136,7 @@ class Inspector(QWidget):
         for w in widgets:
             w.blockSignals(False)
 
-    def set_segment(self, seg: Optional[Segment], exercise_name: str = "") -> None:
+    def set_segment(self, seg: Optional[Segment], exercise_name: str = "", muscles=None) -> None:
         for w in (self.title, self.subtitle):
             w.setEnabled(seg is not None)
         if seg is None:
@@ -152,6 +152,7 @@ class Inspector(QWidget):
             self.title.setText(seg.title)
         if not self.subtitle.hasFocus():
             self.subtitle.setText(seg.subtitle or "")
-        prim = ", ".join(display_name(m) for m in seg.primary) or "none yet"
-        sec = ", ".join(display_name(m) for m in seg.secondary)
+        p, sc = muscles if muscles is not None else (seg.primary, seg.secondary)
+        prim = ", ".join(display_name(m) for m in p) or "none yet"
+        sec = ", ".join(display_name(m) for m in sc)
         self.muscles.setText(f"<b>{prim}</b>" + (f"<br>+ {sec}" if sec else ""))

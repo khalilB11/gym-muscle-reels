@@ -1,0 +1,360 @@
+{
+ "bench_press": {
+  "name": "Bench Press",
+  "primary": [
+   "chest"
+  ],
+  "secondary": [
+   "front_delts",
+   "triceps"
+  ]
+ },
+ "incline_bench_press": {
+  "name": "Incline Bench Press",
+  "primary": [
+   "chest",
+   "front_delts"
+  ],
+  "secondary": [
+   "triceps"
+  ]
+ },
+ "dumbbell_fly": {
+  "name": "Dumbbell Fly",
+  "primary": [
+   "chest"
+  ],
+  "secondary": [
+   "front_delts"
+  ]
+ },
+ "cable_crossover": {
+  "name": "Cable Crossover",
+  "primary": [
+   "chest"
+  ],
+  "secondary": [
+   "front_delts"
+  ]
+ },
+ "push_up": {
+  "name": "Push-Up",
+  "primary": [
+   "chest"
+  ],
+  "secondary": [
+   "front_delts",
+   "triceps",
+   "abs"
+  ]
+ },
+ "dips": {
+  "name": "Dips",
+  "primary": [
+   "triceps",
+   "chest"
+  ],
+  "secondary": [
+   "front_delts"
+  ]
+ },
+ "overhead_press": {
+  "name": "Overhead Press",
+  "primary": [
+   "front_delts",
+   "side_delts"
+  ],
+  "secondary": [
+   "triceps",
+   "traps"
+  ]
+ },
+ "lateral_raise": {
+  "name": "Lateral Raise",
+  "primary": [
+   "side_delts"
+  ],
+  "secondary": [
+   "traps"
+  ]
+ },
+ "rear_delt_fly": {
+  "name": "Rear Delt Fly",
+  "primary": [
+   "rear_delts"
+  ],
+  "secondary": [
+   "rhomboids",
+   "traps"
+  ]
+ },
+ "face_pull": {
+  "name": "Face Pull",
+  "primary": [
+   "rear_delts",
+   "rhomboids"
+  ],
+  "secondary": [
+   "traps",
+   "biceps"
+  ]
+ },
+ "shrug": {
+  "name": "Shrug",
+  "primary": [
+   "traps"
+  ],
+  "secondary": [
+   "forearms"
+  ]
+ },
+ "pull_up": {
+  "name": "Pull-Up",
+  "primary": [
+   "lats"
+  ],
+  "secondary": [
+   "biceps",
+   "rhomboids",
+   "forearms"
+  ]
+ },
+ "lat_pulldown": {
+  "name": "Lat Pulldown",
+  "primary": [
+   "lats"
+  ],
+  "secondary": [
+   "biceps",
+   "rhomboids"
+  ]
+ },
+ "barbell_row": {
+  "name": "Barbell Row",
+  "primary": [
+   "lats",
+   "rhomboids"
+  ],
+  "secondary": [
+   "rear_delts",
+   "biceps",
+   "lower_back"
+  ]
+ },
+ "seated_cable_row": {
+  "name": "Seated Cable Row",
+  "primary": [
+   "rhomboids",
+   "lats"
+  ],
+  "secondary": [
+   "rear_delts",
+   "biceps"
+  ]
+ },
+ "deadlift": {
+  "name": "Deadlift",
+  "primary": [
+   "hamstrings",
+   "glutes",
+   "lower_back"
+  ],
+  "secondary": [
+   "quads",
+   "traps",
+   "forearms",
+   "lats"
+  ]
+ },
+ "romanian_deadlift": {
+  "name": "Romanian Deadlift",
+  "primary": [
+   "hamstrings",
+   "glutes"
+  ],
+  "secondary": [
+   "lower_back",
+   "forearms"
+  ]
+ },
+ "squat": {
+  "name": "Back Squat",
+  "primary": [
+   "quads",
+   "glutes"
+  ],
+  "secondary": [
+   "adductors",
+   "hamstrings",
+   "lower_back",
+   "abs"
+  ]
+ },
+ "front_squat": {
+  "name": "Front Squat",
+  "primary": [
+   "quads"
+  ],
+  "secondary": [
+   "glutes",
+   "abs",
+   "adductors"
+  ]
+ },
+ "leg_press": {
+  "name": "Leg Press",
+  "primary": [
+   "quads",
+   "glutes"
+  ],
+  "secondary": [
+   "hamstrings",
+   "adductors"
+  ]
+ },
+ "lunge": {
+  "name": "Lunge",
+  "primary": [
+   "quads",
+   "glutes"
+  ],
+  "secondary": [
+   "hamstrings",
+   "adductors",
+   "calves"
+  ]
+ },
+ "bulgarian_split_squat": {
+  "name": "Bulgarian Split Squat",
+  "primary": [
+   "quads",
+   "glutes"
+  ],
+  "secondary": [
+   "adductors",
+   "hamstrings"
+  ]
+ },
+ "hip_thrust": {
+  "name": "Hip Thrust",
+  "primary": [
+   "glutes"
+  ],
+  "secondary": [
+   "hamstrings",
+   "quads"
+  ]
+ },
+ "leg_extension": {
+  "name": "Leg Extension",
+  "primary": [
+   "quads"
+  ],
+  "secondary": []
+ },
+ "leg_curl": {
+  "name": "Leg Curl",
+  "primary": [
+   "hamstrings"
+  ],
+  "secondary": [
+   "calves"
+  ]
+ },
+ "adductor_machine": {
+  "name": "Adductor Machine",
+  "primary": [
+   "adductors"
+  ],
+  "secondary": []
+ },
+ "calf_raise": {
+  "name": "Calf Raise",
+  "primary": [
+   "calves"
+  ],
+  "secondary": []
+ },
+ "kettlebell_swing": {
+  "name": "Kettlebell Swing",
+  "primary": [
+   "glutes",
+   "hamstrings"
+  ],
+  "secondary": [
+   "lower_back",
+   "front_delts",
+   "abs"
+  ]
+ },
+ "biceps_curl": {
+  "name": "Biceps Curl",
+  "primary": [
+   "biceps"
+  ],
+  "secondary": [
+   "forearms"
+  ]
+ },
+ "hammer_curl": {
+  "name": "Hammer Curl",
+  "primary": [
+   "biceps",
+   "forearms"
+  ],
+  "secondary": []
+ },
+ "triceps_pushdown": {
+  "name": "Triceps Pushdown",
+  "primary": [
+   "triceps"
+  ],
+  "secondary": []
+ },
+ "skull_crusher": {
+  "name": "Skull Crusher",
+  "primary": [
+   "triceps"
+  ],
+  "secondary": []
+ },
+ "plank": {
+  "name": "Plank",
+  "primary": [
+   "abs",
+   "obliques"
+  ],
+  "secondary": [
+   "front_delts",
+   "glutes"
+  ]
+ },
+ "crunch": {
+  "name": "Crunch",
+  "primary": [
+   "abs"
+  ],
+  "secondary": [
+   "obliques"
+  ]
+ },
+ "hanging_leg_raise": {
+  "name": "Hanging Leg Raise",
+  "primary": [
+   "abs"
+  ],
+  "secondary": [
+   "obliques",
+   "forearms"
+  ]
+ },
+ "russian_twist": {
+  "name": "Russian Twist",
+  "primary": [
+   "obliques"
+  ],
+  "secondary": [
+   "abs"
+  ]
+ }
+}

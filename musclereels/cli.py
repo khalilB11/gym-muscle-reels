@@ -13,7 +13,9 @@ import cv2
 import numpy as np
 
 from . import __version__
+from .activation import activate
 from .bodymap import ALIASES, MUSCLES, display_name
+from .muscles import registry
 from .exercises import ExerciseDB
 from .layout import LayoutError, builtin_presets, resolve_preset
 from .overlay import POSITIONS
@@ -45,6 +47,7 @@ def _quick_project(args) -> Project:
     project = Project(input=inp, output=Path(args.output) if args.output else None, segments=[seg],
                       layout=_layout_from_args(args, builtin_presets()["card-left"]),
                       fit=args.fit or "auto", trim_to_segments=args.trim, card_scale=args.scale or 1.0,
+                      detail_level=args.detail or "simple",
                       exercises_file=[Path(f) for f in args.exercises_file or []])
     project.validate()
     return project
@@ -57,6 +60,8 @@ def cmd_render(args) -> None:
         if args.output:
             project.output = Path(args.output)
         project.layout = _layout_from_args(args, project.layout)
+        if args.detail:
+            project.detail_level = args.detail
     else:
         if not args.exercise:
             raise UsageError("Pass an exercise with -e (e.g. -e squat), or give a .yaml edit script.")
@@ -74,7 +79,8 @@ def cmd_preview(args) -> None:
     seg = make_segment(spec, db)
     project = Project(input=Path("."), output=Path(args.output), segments=[seg],
                       layout=_layout_from_args(args, builtin_presets()["card-left"]),
-                      fit=args.fit or "auto", card_scale=args.scale or 1.0, theme=Theme())
+                      fit=args.fit or "auto", card_scale=args.scale or 1.0, theme=Theme(),
+                      detail_level=args.detail or "simple")
     frame = None
     if args.video:
         cap = cv2.VideoCapture(args.video)
@@ -95,15 +101,23 @@ def cmd_list(args) -> None:
             desc = f"card, {lay.card_position}" if lay.mode == "card" else f"free, card: {lay.card}"
             print(f"  {name:<18} {desc}")
         return
+    if args.muscles and args.detailed:
+        reg = registry()
+        for m in reg.muscles("detailed"):
+            flag = "" if m.default else "  (only when named)"
+            print(f"  {m.id:<22} {m.short_name:<17} {reg.display_name(m.group):<11} {m.full_name}{flag}")
+        return
     if args.muscles:
         for k, v in MUSCLES.items():
             print(f"  {k:<12} {v['name']}")
         print("\nAliases: " + ", ".join(f"{a} → {'+'.join(m)}" for a, m in ALIASES.items()))
         return
     db = ExerciseDB(args.exercises_file or [])
+    level = "detailed" if args.detailed else "simple"
     for ex in db.all():
-        p = ", ".join(display_name(m) for m in ex.primary)
-        s = ", ".join(display_name(m) for m in ex.secondary)
+        prim, sec = activate(ex.primary, ex.secondary, {}, level)
+        p = ", ".join(display_name(m) for m in prim)
+        s = ", ".join(display_name(m) for m in sec)
         print(f"  {ex.key:<24} {p}" + (f"  (+ {s})" if s else ""))
 
 
@@ -151,6 +165,8 @@ def main(argv=None) -> None:
         sp.add_argument("--fit", choices=FITS, help="cover = crop to fill, blur = letterbox on blurred bg (default: auto)")
         sp.add_argument("--scale", type=float, help="card size multiplier for card layouts, e.g. 0.8")
         sp.add_argument("--exercises-file", action="append", help="extra YAML with custom exercises")
+        sp.add_argument("--detail", choices=("simple", "detailed"),
+                        help="body map detail: 18 muscle groups (simple) or 40 muscles (detailed)")
 
     r = sub.add_parser("render", help="render a reel from a clip (+ -e EXERCISE) or a .yaml edit script")
     r.add_argument("input", help="video file, or .yaml edit script")
@@ -177,6 +193,7 @@ def main(argv=None) -> None:
     ls = sub.add_parser("list", help="list exercises (or --muscles / --presets)")
     ls.add_argument("--muscles", action="store_true")
     ls.add_argument("--presets", action="store_true")
+    ls.add_argument("--detailed", action="store_true", help="with --muscles: the 40 detailed muscles")
     ls.add_argument("--exercises-file", action="append")
     ls.set_defaults(func=cmd_list)
 
