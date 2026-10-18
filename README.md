@@ -102,6 +102,41 @@ musclereels list --muscles   # muscle ids and aliases
 In YAML you can also set `pulse_hz`, `crf` (quality, lower = better), `preset`, `audio: false` and a `theme`
 (colors as hex, `font` as a path to a .ttf for your brand font).
 
+## Editor app
+
+```bash
+pip install -e ".[app]"
+musclereels app            # or: musclereels app clip.mp4 / project.yaml
+```
+
+Drop in a clip, pick an exercise, drag and resize the figures, then export. In the Overlay panel:
+- **Style:** Full body, Muscle boxes (one zoomed close-up per muscle), or Both.
+- Text on/off, panel style and opacity. Everything can be undone.
+
+## Detailed muscles
+
+Two detail levels: **Simple** (18 groups, the default) and **Detailed** (40 muscles), e.g. upper/mid/lower
+chest, the three delt heads, biceps and triceps heads, quad and hamstring heads, glute max/med, soleus.
+
+```bash
+musclereels list --muscles --detailed                    # all 40 with full anatomical names
+musclereels render clip.mp4 -e incline_bench_press --detail detailed
+musclereels render clip.mp4 -e deadlift --detail detailed --layout-preset muscle-boxes
+```
+
+In the app, switch **Detail** in the toolbar. Hover a muscle to see its name, and click it to cycle
+main → assisting → off for that exercise. Exercises can name groups (`chest`) or specific muscles
+(`upper_chest`) in YAML. The art lives in `assets/bodymap.svg`; after editing it, run `python tools/build_bodymap.py`.
+
+## Demo reels
+
+```bash
+python tools/make_exercise_demos.py out/demos      # one 8 s reel per exercise + contact_sheet.png
+```
+
+Uses an animated stand-in athlete (`tools/demo_athlete.py`). Each saved project in `out/demos/projects/`
+can be re-rendered with your own clip by changing `input:`.
+
 ## Custom exercises
 
 ```yaml
