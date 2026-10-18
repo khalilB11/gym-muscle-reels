@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel, Q
 
 from .. import __version__
 from ..exercises import ExerciseDB
-from ..layout import snap_to_safe_zone
+from ..layout import SAFE_LEFT, SAFE_RECT, SAFE_TOP, snap_to_safe_zone
 from ..overlay import materialize_card
 from ..project import Project, ProjectError, Segment, load_project, make_segment, save_project
 from ..video import VideoError, VideoSource
@@ -336,9 +336,31 @@ class MainWindow(QMainWindow):
             return
         seg = self.current_segment()
 
+        def free_layout():
+            lay = self.project.layout
+            if lay.mode == "card" and seg is not None:
+                lay = materialize_card(self.project, seg, lay, "per_element")
+            return lay
+
         def fn():
             lay = self.project.layout
-            if key.startswith("show_"):
+            if key == "style":
+                lay = free_layout()
+                figures, tiles = value in ("figures", "both"), value in ("tiles", "both")
+                tp = lay.tiles
+                if tiles and not tp.visible:             # first time: put the boxes where the figures were
+                    tp = replace(tp, x=SAFE_LEFT, y=max(SAFE_TOP + 200, min(lay.front.y, lay.back.y)),
+                                 width=SAFE_RECT[2] - SAFE_LEFT)
+                changes = dict(front=replace(lay.front, visible=figures), back=replace(lay.back, visible=figures),
+                               tiles=replace(tp, visible=tiles))
+                if value == "tiles":
+                    changes["legend"] = replace(lay.legend, visible=False)   # names are inside the boxes
+                self.project.layout = replace(lay, **changes)
+            elif key == "show_legend":
+                figures = lay.front.visible or lay.back.visible
+                self.project.layout = replace(lay, tile_names=bool(value),
+                                              legend=replace(lay.legend, visible=bool(value) and figures))
+            elif key.startswith("show_"):
                 name = key[len("show_"):]
                 self.project.layout = replace(lay, **{name: replace(lay.placement(name), visible=bool(value))})
             elif key == "labels":
@@ -354,7 +376,8 @@ class MainWindow(QMainWindow):
                 theme.card = (*theme.card[:3], round(int(value) / 100 * 255))
                 self.project.theme = theme
 
-        text = {"opacity": "Change background opacity", "background": "Change background"}.get(key, "Show/hide")
+        text = {"opacity": "Change background opacity", "background": "Change background",
+                "style": "Change style"}.get(key, "Show/hide")
         self._edit(text, fn, MERGE_OPACITY if key == "opacity" else -1)
 
     # -- moving / resizing elements on the canvas ----------------------------------

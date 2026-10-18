@@ -13,6 +13,7 @@ from ..layout import Layout
 from ..project import Segment
 from ..theme import Theme
 
+STYLES = [("Full body", "figures"), ("Muscle boxes", "tiles"), ("Both", "both")]
 BACKGROUNDS = [("One for everything", "grouped"), ("One per item", "per_element"), ("None", "none")]
 
 
@@ -57,6 +58,10 @@ class Inspector(QWidget):
 
     def _build_overlay_box(self) -> QGroupBox:
         box = QGroupBox("Overlay")
+        self.style = QComboBox()
+        for text, key in STYLES:
+            self.style.addItem(text, key)
+        self.style.setToolTip("Full body: front/back figures. Muscle boxes: one zoomed close-up per muscle.")
         self.show_title = QCheckBox("Title text")
         self.show_legend = QCheckBox("Muscle names")
         self.show_labels = QCheckBox("FRONT / BACK labels")
@@ -82,6 +87,7 @@ class Inspector(QWidget):
         figs = QVBoxLayout()
         for cb in (self.show_front, self.show_back):
             figs.addWidget(cb)
+        form.addRow("Style", self.style)
         form.addRow("Text", texts)
         form.addRow("Figures", figs)
         form.addRow("Panel", self.background)
@@ -91,6 +97,8 @@ class Inspector(QWidget):
                         ("labels", self.show_labels), ("show_front", self.show_front),
                         ("show_back", self.show_back)):
             cb.toggled.connect(lambda on, k=key: self.overlay_changed.emit(k, on))
+        self.style.currentIndexChanged.connect(
+            lambda i: self.overlay_changed.emit("style", self.style.itemData(i)))
         self.background.currentIndexChanged.connect(
             lambda i: self.overlay_changed.emit("background", self.background.itemData(i)))
         self.opacity.valueChanged.connect(self._opacity_moved)
@@ -107,16 +115,21 @@ class Inspector(QWidget):
         if layout is None:
             return
         widgets = (self.show_title, self.show_legend, self.show_labels, self.show_front, self.show_back,
-                   self.background, self.opacity)
+                   self.background, self.opacity, self.style)
         for w in widgets:
             w.blockSignals(True)
         self.show_title.setChecked(layout.title.visible)
-        self.show_legend.setChecked(layout.legend.visible)
+        figures = layout.front.visible or layout.back.visible
+        tiles = layout.tiles.visible
+        style = "both" if (tiles and figures) else ("tiles" if tiles else "figures")
+        self.style.setCurrentIndex(self.style.findData(style))
+        self.show_legend.setChecked(layout.legend.visible or (tiles and layout.tile_names))
+        self.show_labels.setEnabled(figures)          # FRONT/BACK only applies to full-body figures
         self.show_labels.setChecked(layout.labels)
         self.show_front.setChecked(layout.front.visible)
         self.show_back.setChecked(layout.back.visible)
-        style = "grouped" if layout.mode == "card" else layout.card
-        self.background.setCurrentIndex(self.background.findData(style))
+        panel = "grouped" if layout.mode == "card" else layout.card
+        self.background.setCurrentIndex(self.background.findData(panel))
         pct = round(theme.card[3] / 255 * 100)
         self.opacity.setValue(pct)
         self.opacity_label.setText(f"{pct}%")

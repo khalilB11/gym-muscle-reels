@@ -184,3 +184,64 @@ def render_figure(
         body = Image.alpha_composite(glow, body)
 
     return body.resize((width_px, round(H * width_px / W)), Image.LANCZOS)
+
+
+# --- close-ups (muscle boxes) ---------------------------------------------------
+
+def _area(poly: Poly) -> float:
+    return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]))) / 2
+
+
+def _centroid_x(poly: Poly) -> float:
+    return sum(x for x, _ in poly) / len(poly)
+
+
+def muscle_region(muscle: str, pad: float = 0.8, min_size: float = 84) -> tuple[str, tuple[float, float, float, float]]:
+    """(view, square crop box in design units) framing one muscle group for a close-up.
+
+    Picks the view where the muscle is largest; for paired muscles frames one side only."""
+    by_view: dict[str, list[Poly]] = {}
+    for view, sid in GROUP_SHAPES[muscle]:
+        by_view.setdefault(view, []).extend(SHAPES[view][sid])
+    view = max(by_view, key=lambda v: sum(_area(p) for p in by_view[v]))
+    polys = [p for p in by_view[view] if _centroid_x(p) >= 98] or by_view[view]
+    xs = [x for p in polys for x, _ in p]
+    ys = [y for p in polys for _, y in p]
+    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    side = min(float(W) - 1, max(min_size, max(max(xs) - min(xs), max(ys) - min(ys)) * (1 + pad)))
+    x0 = min(max(0.0, cx - side / 2), W - side)
+    y0 = min(max(0.0, cy - side / 2), H - side)
+    return view, (x0, y0, x0 + side, y0 + side)
+
+
+def render_crop(view: str, primary: Iterable[str], secondary: Iterable[str], box, size_px: int, theme,
+                lit: bool = True, supersample: int = 3) -> Image.Image:
+    """Render the part of a figure inside `box` (design units) as a size_px x size_px RGBA image,
+    in the same style as render_figure."""
+    x0, y0, x1, y1 = box
+    s = size_px * supersample / (x1 - x0)
+    big = (size_px * supersample, size_px * supersample)
+    levels = _levels(view, primary, secondary) if lit else {}
+    colors = {"primary": theme.primary, "secondary": theme.secondary}
+    gap = max(1, round(1.8 * s))
+
+    def tr(poly: Poly) -> list[Point]:
+        return [((x - x0) * s, (y - y0) * s) for x, y in poly]
+
+    body = Image.new("RGBA", big, (0, 0, 0, 0))
+    d = ImageDraw.Draw(body)
+    for poly in FILLERS[view]:
+        d.polygon(tr(poly), fill=theme.filler, outline=theme.gap, width=gap)
+    for sid, polys in SHAPES[view].items():
+        fill = colors.get(levels.get(sid, ""), theme.inactive)
+        for poly in polys:
+            d.polygon(tr(poly), fill=fill, outline=theme.gap, width=gap)
+    if levels:
+        glow = Image.new("RGBA", big, (0, 0, 0, 0))
+        g = ImageDraw.Draw(glow)
+        for sid, level in levels.items():
+            for poly in SHAPES[view][sid]:
+                g.polygon(tr(poly), fill=colors[level])
+        glow = glow.filter(ImageFilter.GaussianBlur(radius=4 * s))
+        body = Image.alpha_composite(glow, body)
+    return body.resize((size_px, size_px), Image.LANCZOS)

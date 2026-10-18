@@ -57,6 +57,26 @@ caption area, export, and confirm the export matches the preview.
 
 ---
 
+### User Story 2b - Muscle boxes style (Priority: P1)
+
+Instead of (or next to) the full-body figures, the creator shows **one box per worked muscle**: a
+zoomed close-up of the body around that muscle, lit red for main muscles and orange for assisting
+ones, with the muscle's name underneath.
+
+**Why this priority**: Requested by the creator; makes each muscle readable on a phone screen.
+
+**Independent Test**: Pick "Deadlift", choose Style → Muscle boxes, export; the reel shows 7 boxes
+(3 red, 4 orange), each framing its muscle, and no full-body figures.
+
+**Acceptance Scenarios**:
+
+1. **Given** an exercise, **When** the user picks Style → Muscle boxes, **Then** each worked muscle gets its own square close-up box, main muscles first, and the full-body figures are hidden; Style → Both shows figures and boxes; Full body returns to figures only.
+2. **Given** muscle boxes, **When** the user drags or resizes them, **Then** they move as one group and resizing changes the box size (up to 4 per row), kept inside the safe zone.
+3. **Given** muscle boxes, **When** "Muscle names" is off, **Then** the boxes show no text.
+4. **Given** a paired muscle (e.g. quads), **Then** its box frames one side of the body with enough surroundings to recognise where it is.
+
+---
+
 ### User Story 3 - Several exercises on a timeline (Priority: P2)
 
 For a full-session clip the creator marks where each exercise starts and ends on a timeline under
@@ -144,6 +164,7 @@ movable/resizable on the canvas.
 - **FR-009**: The front figure and back figure MUST each be independently movable, resizable (proportions locked), and showable/hideable.
 - **FR-010**: Users MUST be able to toggle the card background, the legend, and view labels independently, and choose where the legend sits.
 - **FR-010a**: Users MUST be able to turn every text element off (title, muscle names, FRONT/BACK labels) so a reel can show the figures only, and set the panel background opacity from 0 % (fully see-through) to 100 %.
+- **FR-010b**: Users MUST be able to choose a **Muscle boxes** style: one square zoomed close-up per worked muscle (main muscles first, coloured by role, optional name), shown instead of or together with the full-body figures, movable and resizable as one element, and available to the CLI as the `muscle-boxes` layout preset.
 - **FR-011**: The canvas MUST show Instagram's reserved areas while editing and keep overlay elements inside the safe zone by default, with an explicit override.
 - **FR-012**: Placement MUST have a project default with optional per-segment overrides.
 - **FR-013**: Users MUST be able to save, name, apply, and delete layout presets; presets MUST be reusable across projects.

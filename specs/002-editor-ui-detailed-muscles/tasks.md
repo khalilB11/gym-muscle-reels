@@ -113,6 +113,13 @@ description: "Task list for feature 002: Reel Editor App with Detailed Muscle Ma
 - [ ] T041 [US2] Add right-click menu "This segment only" / "Reset to project default" on `ElementItem`s; edits while active write a `SegmentLayoutOverride` on the selected segment
 - [ ] T042 [US2] Run T033–T035 green and quickstart §4 steps 3–4
 
+### Muscle boxes style (User Story 2b, added on request)
+
+- [X] T042a [P] [US2] Write `tests/test_tiles.py` and `tests/app/test_tiles_app.py`: one tile per muscle (main first), square close-up framing each muscle (one side for paired muscles), sprite box == `element_boxes`, safe zone, names toggle, resize, Style switch, undo
+- [X] T042b [US2] Add `tiles` element + `tile_names` to `Layout` (hidden by default, so existing layouts are unchanged) and the `muscle-boxes` preset in `musclereels/data/presets.yaml`
+- [X] T042c [US2] Add `muscle_region` and `render_crop` (close-up renderer in the same style) to `musclereels/bodymap.py`; `tile_regions`, tile metrics and the `tiles` sprite in `musclereels/overlay.py` (FR-010b)
+- [X] T042d [US2] App: Style combo (Full body / Muscle boxes / Both) in `musclereels/app/inspector.py`, "Muscle names" also controls tile names, tiles handle resizable in `musclereels/app/handles.py`, wiring in `musclereels/app/main_window.py`
+
 **Checkpoint**: layout is fully flexible and undoable; US1 still passes.
 
 ---

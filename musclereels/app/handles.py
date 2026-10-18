@@ -10,7 +10,7 @@ from PySide6.QtGui import QBrush, QColor, QCursor, QPen
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsRectItem
 
 GRIP = 46                       # resize grip size, export px
-RESIZABLE = {"front", "back", "legend"}
+RESIZABLE = {"front", "back", "legend", "tiles"}
 
 
 class HandleSignals(QObject):
@@ -30,6 +30,7 @@ class ElementHandle(QGraphicsRectItem):
         self.setBrush(QBrush(Qt.NoBrush))
         self.setPen(QPen(Qt.NoPen))
         self.setToolTip({"front": "Front figure", "back": "Back figure", "legend": "Muscle names",
+                         "tiles": "Muscle boxes",
                          "title": "Title"}.get(name, name) + " — drag to move" +
                         (", drag the corner to resize" if name in RESIZABLE else ""))
         self._hover = False
@@ -103,7 +104,8 @@ class ElementHandle(QGraphicsRectItem):
         d = pos - self._press
         if self._mode == "resize":
             r = self._start_rect
-            dw = max(d.x(), d.y() * r.width() / max(1.0, r.height())) if self.name != "legend" else d.x()
+            dw = max(d.x(), d.y() * r.width() / max(1.0, r.height())) if self.name not in ("legend", "tiles") \
+                else d.x()
             dw = max(dw, 80 - r.width())            # don't shrink below a usable size
             return 0.0, 0.0, dw
         return d.x(), d.y(), 0.0
@@ -114,7 +116,7 @@ class ElementHandle(QGraphicsRectItem):
         if dw:
             k = (r.width() + dw) / max(1.0, r.width())
             r.setWidth(r.width() + dw)
-            if self.name != "legend":
+            if self.name not in ("legend", "tiles"):
                 r.setHeight(r.height() * k)
         r.translate(dx, dy)
         self.setRect(r)

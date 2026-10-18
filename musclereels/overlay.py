@@ -5,6 +5,7 @@ so what you see while editing is what gets rendered.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, replace
 from typing import Sequence
 
@@ -12,7 +13,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
-from .bodymap import H as FIG_H, W as FIG_W, display_name, render_figure, resolve_muscles
+from .bodymap import H as FIG_H, W as FIG_W, display_name, muscle_region, render_crop, render_figure, resolve_muscles
 from .layout import (CANVAS_H, CANVAS_W, ELEMENTS, SAFE_BOTTOM, SAFE_LEFT, SAFE_RIGHT, SAFE_TOP,
                      ElementPlacement, Layout, builtin_presets, effective_layout, snap_to_safe_zone)
 from .theme import Theme, load_font
@@ -230,7 +231,8 @@ def materialize_card(project, segment, layout: Layout, style: str = "grouped") -
     if per:
         lx, ly, lw = lx - 22, ly - 22, lw + 44
     pl["legend"] = ElementPlacement(layout.legend.visible, lx, ly, lw)
-    return Layout(mode="free", card=style, labels=layout.labels, **pl)
+    return Layout(mode="free", card=style, labels=layout.labels, tiles=layout.tiles,
+                  tile_names=layout.tile_names, **pl)
 
 
 # --- free mode ---------------------------------------------------------------------
@@ -285,6 +287,80 @@ def _legend_element(primary, secondary, theme: Theme, width: int, style: str, x:
     return Sprite(x, y, _to_bgra(img), None, "legend")
 
 
+@dataclass(frozen=True)
+class TileRegion:
+    muscle: str
+    level: str                                   # primary | secondary
+    view: str
+    box: tuple[float, float, float, float]       # square crop, design units
+
+
+def tile_regions(project, segment) -> list[TileRegion]:
+    """One close-up per worked muscle: main muscles first, then assisting ones."""
+    primary, secondary = segment_muscles(segment)
+    out = []
+    for level, muscles in (("primary", primary), ("secondary", secondary)):
+        for m in muscles:
+            view, box = muscle_region(m)
+            out.append(TileRegion(m, level, view, box))
+    return out
+
+
+def _tiles_metrics(n: int, width: int, names: bool) -> dict:
+    gap = 14
+    slots = 3 if n <= 6 else 4                 # tiles are sized for a full row, so 1-2 muscles stay compact
+    cols = max(1, min(n, slots))
+    tile = max(60, (width - gap * (slots - 1)) // slots)
+    name_h = max(22, round(tile * 0.2)) if names else 0
+    rows = max(1, math.ceil(n / cols))
+    return dict(gap=gap, cols=cols, rows=rows, tile=tile, name_h=name_h,
+                w=cols * tile + (cols - 1) * gap, h=rows * (tile + name_h) + (rows - 1) * gap)
+
+
+def _tiles_element(project, segment, layout: Layout, x: int, y: int) -> Sprite | None:
+    regions = tile_regions(project, segment)
+    if not regions:
+        return None
+    theme = project.theme
+    m = _tiles_metrics(len(regions), max(60, layout.tiles.width), layout.tile_names)
+    t, gap, name_h, cols = m["tile"], m["gap"], m["name_h"], m["cols"]
+    pad = max(4, round(t * 0.05))
+    radius = round(t * 0.12)
+    font = load_font(max(14, round(t * 0.12)), True, theme.font)
+    colors = {"primary": theme.primary, "secondary": theme.secondary}
+
+    def draw(lit: bool) -> Image.Image:
+        img = Image.new("RGBA", (m["w"], m["h"]), (0, 0, 0, 0))
+        for i, r in enumerate(regions):
+            tx, ty = (i % cols) * (t + gap), (i // cols) * (t + name_h + gap)
+            tile = Image.new("RGBA", (t, t + name_h), (0, 0, 0, 0))
+            d = ImageDraw.Draw(tile)
+            if layout.card != "none":
+                d.rounded_rectangle((0, 0, t - 1, t + name_h - 1), radius=radius, fill=theme.card)
+            prim, sec = ([r.muscle], []) if r.level == "primary" else ([], [r.muscle])
+            crop = render_crop(r.view, prim, sec, r.box, t - 2 * pad, theme, lit=lit)
+            mask = Image.new("L", crop.size, 0)
+            ImageDraw.Draw(mask).rounded_rectangle((0, 0, crop.width - 1, crop.height - 1),
+                                                   radius=max(2, radius - pad), fill=255)
+            crop.putalpha(Image.fromarray(np.minimum(np.asarray(crop.getchannel("A")), np.asarray(mask))))
+            tile.alpha_composite(crop, (pad, pad))
+            d = ImageDraw.Draw(tile)
+            d.rounded_rectangle((1, 1, t - 2, t + name_h - 2), radius=radius, outline=colors[r.level],
+                                width=max(2, round(t * 0.018)))
+            if name_h:
+                label = display_name(r.muscle)
+                lw, lh, ly = _text_size(d, label, font)
+                if lw > t - 2 * pad:
+                    label = label.split()[0]
+                    lw, lh, ly = _text_size(d, label, font)
+                d.text(((t - lw) // 2, t + (name_h - lh) // 2 - ly - pad // 2), label, font=font, fill=theme.text)
+            img.alpha_composite(tile, (tx, ty))
+        return img
+
+    base, lit = _to_bgra(draw(False)), _to_bgra(draw(True))
+    return Sprite(x, y, base, lit - base, "tiles")
+
+
 def _panel_sprite(boxes: list[tuple[int, int, int, int]], theme: Theme, pad: int = 22) -> Sprite:
     x0 = min(b[0] for b in boxes) - pad
     y0 = min(b[1] for b in boxes) - pad
@@ -295,7 +371,8 @@ def _panel_sprite(boxes: list[tuple[int, int, int, int]], theme: Theme, pad: int
     return Sprite(x0, y0, _to_bgra(img), None, "card")
 
 
-def _free_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layout) -> list[Sprite]:
+def _free_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layout,
+                       project=None, segment=None) -> list[Sprite]:
     sprites: list[Sprite] = []
     if layout.title.visible:
         p = layout.title
@@ -312,6 +389,10 @@ def _free_mode_sprites(title, subtitle, primary, secondary, theme, layout: Layou
         leg = _legend_element(primary, secondary, theme, max(60, p.width), layout.card, p.x, p.y)
         if leg:
             body.append(leg)
+    if layout.tiles.visible and project is not None:
+        tiles = _tiles_element(project, segment, layout, layout.tiles.x, layout.tiles.y)
+        if tiles:
+            body.append(tiles)
     # Heights depend on the content (e.g. legend rows), so keep each element inside the safe zone
     # with its real size unless the user deliberately placed it outside.
     for i, sp in enumerate(body):
@@ -349,6 +430,11 @@ def element_boxes(project, segment, layout: Layout | None = None) -> dict[str, t
         _, chips_h, used = _chips(primary, secondary, project.theme, max(60, max(60, p.width) - 2 * pad), 1.0)
         if chips_h:
             sizes["legend"] = (max(60, p.width) if pad else max(1, used), chips_h + 2 * pad)
+    if layout.tiles.visible:
+        n = len(tile_regions(project, segment))
+        if n:
+            m = _tiles_metrics(n, max(60, layout.tiles.width), layout.tile_names)
+            sizes["tiles"] = (m["w"], m["h"])
     for name, (w, h) in sizes.items():
         snapped = snap_to_safe_zone(layout.placement(name), (w, h))
         boxes[name] = (snapped.x, snapped.y, snapped.x + w, snapped.y + h)
@@ -387,7 +473,8 @@ def build_sprites(project, segment, layout: Layout | None = None, scale: float =
         sprites = _card_mode_sprites(segment.title, segment.subtitle, primary, secondary, project.theme,
                                      layout, project.card_scale)
     else:
-        sprites = _free_mode_sprites(segment.title, segment.subtitle, primary, secondary, project.theme, layout)
+        sprites = _free_mode_sprites(segment.title, segment.subtitle, primary, secondary, project.theme, layout,
+                                     project, segment)
     if scale != 1.0:
         sprites = [_scale_sprite(sp, scale) for sp in sprites]
     return sprites
@@ -425,5 +512,5 @@ def composite(frame: np.ndarray, sprites: Sequence[Sprite], glow: float, opacity
         frame[y0:y1, x0:x1] = np.clip(roi, 0, 255).astype(np.uint8)
 
 
-__all__ = ["Sprite", "build_sprites", "build_overlay", "composite", "materialize_card", "segment_muscles",
+__all__ = ["Sprite", "TileRegion", "tile_regions", "element_boxes", "build_sprites", "build_overlay", "composite", "materialize_card", "segment_muscles",
            "CANVAS_W", "CANVAS_H", "SAFE_TOP", "SAFE_BOTTOM", "SAFE_LEFT", "SAFE_RIGHT", "POSITIONS", "ELEMENTS"]

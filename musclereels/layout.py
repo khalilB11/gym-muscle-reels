@@ -20,7 +20,7 @@ CANVAS_W, CANVAS_H = 1080, 1920
 SAFE_TOP, SAFE_BOTTOM, SAFE_LEFT, SAFE_RIGHT = 250, 450, 60, 180
 SAFE_RECT = (SAFE_LEFT, SAFE_TOP, CANVAS_W - SAFE_RIGHT, CANVAS_H - SAFE_BOTTOM)  # x0, y0, x1, y1
 
-ELEMENTS = ("title", "front", "back", "legend")
+ELEMENTS = ("title", "front", "back", "legend", "tiles")   # tiles = one zoomed box per muscle
 MODES = ("card", "free")
 CARD_POSITIONS = ("left", "right", "center")
 CARD_STYLES = ("grouped", "per_element", "none")
@@ -61,7 +61,9 @@ _FREE_DEFAULTS = {
     "front": ElementPlacement(True, SAFE_LEFT, 520, 220),
     "back": ElementPlacement(True, SAFE_LEFT + 260, 520, 220),
     "legend": ElementPlacement(True, SAFE_LEFT, 1100, 520),
+    "tiles": ElementPlacement(False, SAFE_LEFT, 520, 840),
 }
+_HIDDEN = ElementPlacement(visible=False)
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,8 @@ class Layout:
     front: ElementPlacement = field(default_factory=ElementPlacement)
     back: ElementPlacement = field(default_factory=ElementPlacement)
     legend: ElementPlacement = field(default_factory=ElementPlacement)
+    tiles: ElementPlacement = field(default_factory=lambda: _HIDDEN)   # off unless asked for
+    tile_names: bool = True                # muscle name under each tile
 
     def __post_init__(self):
         if self.mode not in MODES:
@@ -91,25 +95,30 @@ class Layout:
             d: dict = {"mode": "card", "position": self.card_position}
             if not self.labels:
                 d["labels"] = False
-            hidden = {n: {"visible": False} for n in ELEMENTS if not self.placement(n).visible}
+            hidden = {n: {"visible": False} for n in ELEMENTS if n != "tiles" and not self.placement(n).visible}
             d.update(hidden)
             return d
         d = {"card": self.card, "labels": self.labels}
-        d.update({n: self.placement(n).to_dict() for n in ELEMENTS})
+        d.update({n: self.placement(n).to_dict() for n in ELEMENTS if n != "tiles" or self.tiles.visible})
+        if not self.tile_names:
+            d["tile_names"] = False
         return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "Layout":
         d = dict(d or {})
-        allowed = {"mode", "position", "card", "labels", *ELEMENTS}
+        allowed = {"mode", "position", "card", "labels", "tile_names", *ELEMENTS}
         bad = set(d) - allowed
         if bad:
             raise LayoutError(f"unknown layout key(s): {', '.join(sorted(bad))}")
         mode = d.get("mode", "free")
         base = {n: (_FREE_DEFAULTS[n] if mode == "free" else ElementPlacement()) for n in ELEMENTS}
+        base["tiles"] = _FREE_DEFAULTS["tiles"] if mode == "free" else _HIDDEN
         placements = {n: base[n].merged(d.get(n) or {}) for n in ELEMENTS}
+        if "tiles" in d and "visible" not in (d.get("tiles") or {}):
+            placements["tiles"] = replace(placements["tiles"], visible=True)   # listing tiles turns them on
         return cls(mode=mode, card_position=d.get("position", "left"), card=d.get("card", "grouped"),
-                   labels=bool(d.get("labels", True)), **placements)
+                   labels=bool(d.get("labels", True)), tile_names=bool(d.get("tile_names", True)), **placements)
 
 
 @dataclass
