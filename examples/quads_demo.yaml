@@ -1,0 +1,41 @@
+# Quads demo: three quad exercises, three overlay styles (muscle boxes, full body, both).
+#   python tools/make_squat_clip.py demo/squat_clip.mp4
+#   musclereels render examples/quads_demo.yaml
+version: 2
+input: ../demo/squat_clip.mp4
+output: ../demo/quads_demo_reel.mp4
+detail_level: simple
+layout:
+  card: per_element
+  labels: false
+  title:  {visible: true,  x: 60,  y: 250, width: 960}
+  front:  {visible: false, x: 690, y: 460, width: 210}
+  back:   {visible: false, x: 690, y: 925, width: 210}
+  legend: {visible: false, x: 60,  y: 460, width: 600}
+  tiles:  {visible: false, x: 620, y: 460, width: 868}
+theme:
+  card: "#0C0E1273"          # panels at ~45 % opacity
+segments:
+  - start: 0
+    end: 4
+    exercise: leg_extension
+    subtitle: Quads in isolation
+    layout:                  # style: one big muscle box
+      tiles: {visible: true}
+
+  - start: 4
+    end: 8
+    exercise: squat
+    subtitle: Quads + glutes
+    layout:                  # style: full body, front and back
+      front: {visible: true}
+      back: {visible: true}
+      legend: {visible: true}
+
+  - start: 8
+    end: 12
+    exercise: front_squat
+    subtitle: Upright torso = more quads
+    layout:                  # style: both
+      front: {visible: true}
+      tiles: {visible: true, x: 60, y: 470, width: 610}

@@ -308,7 +308,7 @@ def tile_regions(project, segment) -> list[TileRegion]:
 
 def _tiles_metrics(n: int, width: int, names: bool) -> dict:
     gap = 14
-    slots = 3 if n <= 6 else 4                 # tiles are sized for a full row, so 1-2 muscles stay compact
+    slots = 4 if n == 4 or n >= 7 else 3       # 4 muscles = one row; tiles sized for a full row, so 1-2 stay compact
     cols = max(1, min(n, slots))
     tile = max(60, (width - gap * (slots - 1)) // slots)
     name_h = max(22, round(tile * 0.2)) if names else 0
